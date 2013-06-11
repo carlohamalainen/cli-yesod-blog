@@ -1,0 +1,9 @@
+*.pyc
+blog/dist*
+blog/static/tmp/
+blog/config/client_session_key.aes
+*.hi
+*.o
+*.sqlite3
+.hsenv*
+blog/yesod-devel/
