@@ -1,0 +1,20 @@
+Default: &defaults
+  database: blog.sqlite3
+  poolsize: 10
+
+Development:
+  <<: *defaults
+
+Testing:
+  database: blog_test.sqlite3
+  <<: *defaults
+
+Staging:
+  database: blog_staging.sqlite3
+  poolsize: 100
+  <<: *defaults
+
+Production:
+  database: blog_production.sqlite3
+  poolsize: 100
+  <<: *defaults
