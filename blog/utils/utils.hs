@@ -1,5 +1,5 @@
 -- imports copied from app/main.hs
-import Prelude              (IO, print, head, readFile, writeFile)
+import Prelude              (IO, print, head, tail, readFile, writeFile)
 import Yesod.Default.Config (fromArgs)
 import Yesod.Default.Main   (defaultMain)
 import Settings             (parseExtra)
@@ -21,6 +21,7 @@ import System.Process
 import Data.Maybe
 import Data.Char
 import System.Environment ( getArgs )
+import System.IO ( getContents )
 
 sanitiseTitle :: Text -> Text
 sanitiseTitle = DT.pack . nukeNonAlNum . DT.unpack . dashes . lowerCase
@@ -122,6 +123,11 @@ addBlogPostFromEditor title = do
 
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
+-- For importing entries; requires year, month, day to be specified.
+addBlogPostFromStdin title year month day = do
+    content <- liftM DT.pack $ getContents
+    myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
+
 editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry <- myRunDB $ get entryId
@@ -148,6 +154,15 @@ go ["--dump"] = dumpBlogPosts
 
 go ["--edit", entryId]      = editBlogPost (read entryId)
 go ["--delete", entryId]    = deleteBlogPost (read entryId)
+
+go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
+                                 print x -- FIXME tidy this up
+
+go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin (DT.pack title) (read year) (read month) (read day)
+                                                       print x -- FIXME tidy this up
+
+go ["--set-visible", i]     = setEntryVisible (read i) True
+go ["--set-invisible", i]   = setEntryVisible (read i) False
 
 go _ = do
     putStrLn "Usage:"
