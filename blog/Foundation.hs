@@ -20,6 +20,7 @@ import Text.Jasmine (minifym)
 import Web.ClientSession (getKey)
 import Text.Hamlet (hamletFile)
 import System.Log.FastLogger (Logger)
+import Data.Text
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -131,24 +132,11 @@ instance YesodPersist App where
             (connPool master)
 
 instance YesodAuth App where
-    type AuthId App = UserId
+    type AuthId App = Text
 
-    -- Where to send a user after successful login
     loginDest _ = HomeR
-    -- Where to send a user after logout
     logoutDest _ = HomeR
 
-    getAuthId creds = runDB $ do
-        x <- getBy $ UniqueUser $ credsIdent creds
-        case x of
-            Just (Entity uid _) -> return $ Just uid
-            Nothing -> do
-                fmap Just $ insert $ User (credsIdent creds) Nothing
-
-    -- You can add other plugins like BrowserID, email or OAuth here
-    authPlugins _ = [authBrowserId, authGoogleEmail]
-
-    authHttpManager = httpManager
 
 -- This instance is required to use forms. You can modify renderMessage to
 -- achieve customized and internationalized form validation messages.

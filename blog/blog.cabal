@@ -71,6 +71,9 @@ library
                  , conduit                       >= 1.0
                  , monad-logger                  >= 0.3
                  , fast-logger                   >= 0.3
+                 , time
+                 , strict
+                 , resourcet
 
 executable         blog
     if flag(library-only)
@@ -80,6 +83,25 @@ executable         blog
     hs-source-dirs:    app
     build-depends:     base
                      , blog
+                     , yesod-default
+
+    ghc-options:       -threaded -O2
+
+executable         blog-utils
+    if flag(library-only)
+        Buildable: False
+
+    main-is:           utils.hs
+    hs-source-dirs:    utils
+    build-depends:     base
+                     , blog
+                     , resourcet
+                     , monad-logger
+                     , time
+                     , persistent
+                     , persistent-sqlite
+                     , process
+                     , text
                      , yesod-default
 
     ghc-options:       -threaded -O2
