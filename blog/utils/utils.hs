@@ -157,7 +157,7 @@ addBlogPostFromFiles fileName = do
 addCommentFromFiles fileName = do
     let entryId = Key $ PersistInt64 (fromIntegral 82)
         name    = DT.pack "bob somebody"
-        text    = Textarea "haha lol"
+        text    = Textarea "haha \n lol"
         visible = False
 
     posted <- getCurrentTime
@@ -177,6 +177,27 @@ editBlogPost i = do
                                                   myRunDB $ update entryId [EntryContent =. content2]
                                    Nothing  -> print "boo"
 
+showBlogPost i = do
+    let entryId = Key $ PersistInt64 (fromIntegral i)
+    entry    <- myRunDB $ get entryId
+    comments <- myRunDB $ get entryId
+
+    case (entry :: Maybe Entry) of (Just e) -> do let content = DT.unpack $ entryContent e
+                                                  print content -- TODO grab the code for displaying a blog post from listBlogPosts
+
+                                                  comments <- myRunDB $ selectList [] [] :: IO [Entity Comment]
+
+                                                  forM_ comments (\c -> do let (Entity cid (Comment _ posted name text visible)) = c
+                                                                               niceCommentId    = show $ foo $ unKey $ cid :: String
+                                                                               niceName         = DT.unpack name
+                                                                               niceText         = show $ lines $ DT.unpack $ unTextarea text
+                                                                               niceVisible      = show visible :: String
+
+
+                                                                           putStrLn $ (show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                                   Nothing  -> print "boo"
+    where foo (PersistInt64 i) = i
+
 deleteBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i) :: KeyBackend Database.Persist.GenericSql.Raw.SqlBackend Entry
     myRunDB $ delete entryId
@@ -189,6 +210,7 @@ go :: [String] -> IO ()
 go ["--list"] = listBlogPosts
 go ["--dump"] = dumpBlogPosts
 
+go ["--show", entryId]      = showBlogPost (read entryId)
 go ["--edit", entryId]      = editBlogPost (read entryId)
 go ["--delete", entryId]    = deleteBlogPost (read entryId)
 
