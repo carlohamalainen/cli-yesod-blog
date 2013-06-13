@@ -128,6 +128,20 @@ addBlogPostFromStdin title year month day = do
     content <- liftM DT.pack $ getContents
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
+addBlogPostFromFiles fileName = do
+    x <- lines <$> readFile fileName
+
+    let ymd     = head x
+        year    = read $ words ymd !! 0 :: Int
+        month   = read $ words ymd !! 1 :: Int
+        day     = read $ words ymd !! 2 :: Int
+        title   = DT.pack $ head $ tail x
+        content = DT.pack $ unlines $ drop 2 x
+
+    i <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
+
+    print i
+
 editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry <- myRunDB $ get entryId
@@ -160,6 +174,8 @@ go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
 
 go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin (DT.pack title) (read year) (read month) (read day)
                                                        print x -- FIXME tidy this up
+
+go ["--add-from-file", fileName]  = addBlogPostFromFiles fileName
 
 go ["--set-visible", i]     = setEntryVisible (read i) True
 go ["--set-invisible", i]   = setEntryVisible (read i) False
