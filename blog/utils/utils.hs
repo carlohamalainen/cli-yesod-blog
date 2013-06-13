@@ -152,7 +152,18 @@ addBlogPostFromFiles fileName = do
 
     i <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
-    print i
+    print i -- FIXME tidyup
+
+addCommentFromFiles fileName = do
+    let entryId = Key $ PersistInt64 (fromIntegral 82)
+        name    = DT.pack "bob somebody"
+        text    = Textarea "haha lol"
+        visible = False
+
+    posted <- getCurrentTime
+
+    c <- myRunDB $ insert (Comment entryId posted name text visible)
+    print c
 
 editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
