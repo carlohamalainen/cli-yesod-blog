@@ -21,7 +21,14 @@ import System.Process
 import Data.Maybe
 import Data.Char
 import System.Environment ( getArgs )
-import System.IO ( getContents )
+import System.IO ( openFile, getContents )
+import System.IO ( IOMode( ReadMode ) )
+
+import qualified Data.ByteString as BS
+import qualified Data.Map as DM
+import qualified Data.Text as DT
+import qualified Data.Text.Encoding as DTE
+import qualified Data.Text.Encoding.Error as DTEE
 
 sanitiseTitle :: Text -> Text
 sanitiseTitle = DT.pack . nukeNonAlNum . DT.unpack . dashes . lowerCase
@@ -129,7 +136,12 @@ addBlogPostFromStdin title year month day = do
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
 addBlogPostFromFiles fileName = do
-    x <- lines <$> readFile fileName
+    h <- openFile fileName ReadMode
+
+    contents <- BS.hGetContents h
+    let x = lines $ DT.unpack $ DTE.decodeUtf8With DTEE.lenientDecode contents
+
+    -- x <- lines <$> readFile fileName
 
     let ymd     = head x
         year    = read $ words ymd !! 0 :: Int

@@ -103,6 +103,8 @@ executable         blog-utils
                      , process
                      , text
                      , yesod-default
+                     , containers
+                     , bytestring
 
     ghc-options:       -threaded -O2
 
