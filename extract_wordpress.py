@@ -70,15 +70,28 @@ if __name__ == '__main__':
             idName = 'comment_ID'
         _connection = connection
 
-    published_posts = []
+    i = 0
 
     for p in wp_posts.select():
         if p.postStatus != 'publish': continue
 
-        comments = [(c.commentAuthor, c.commentContent) for c in wp_comments.select(wp_comments.q.commentPostID==p.id) if c.commentApproved == '1' and c.commentType == '']
-        print p.postDate.year, p.postDate.month, p.postDate.day, strip_accents(p.postTitle.decode('latin-1')), comments
+        comments = [(c.commentAuthor, c.commentContent) for c in wp_comments.select(wp_comments.q.commentPostID==p.id).orderBy('commentDate') if c.commentApproved == '1' and c.commentType == '']
 
 
-    # FIXME reverse comments? Sort by date?
+        print i
+        f = open('%s_%05d.html' % (db, i,), 'w')
 
+        f.write(' '.join([str(p.postDate.year), str(p.postDate.month), str(p.postDate.day),]) + '\n')
+        f.write(strip_accents(p.postTitle.decode('latin-1')) + '\n')
+        f.write(p.postContent.replace(r'\r\n', r'\n'))
+        f.close()
 
+        c = 0
+        for (comment_author, comment_content) in comments:
+            c_file = open('%s_%05d_comment%05d.html' % (db, i, c), 'w')
+            c_file.write(comment_author + '\n')
+            c_file.write(comment_content)
+            c_file.close()
+            c += 1
+
+        i += 1
