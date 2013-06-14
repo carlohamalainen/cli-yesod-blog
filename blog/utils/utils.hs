@@ -83,19 +83,23 @@ myRunDB f = do
 
     runNoLoggingT $ runResourceT $ Database.Persist.Store.runPool dbconf f p
 
+printBlogPost eid (Entry title mashedTitle year month day content visible) = do
+    let niceEntryId = show $ foo $ unKey $ eid :: String
+        niceURL = DT.unpack $ DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
+        niceTitle = DT.unpack title
+        niceContent = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") $ content
+        niceVisible = if visible then "VISIBLE" else "HIDDEN"
+
+    putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent
+
+    where foo (PersistInt64 i) = i
+
+printBlogPostEntity (Entity eid entry) = printBlogPost eid entry
+
 listBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
 
-    forM_ posts (\e -> do let (Entity eid (Entry title mashedTitle year month day content visible)) = e
-                              niceEntryId = show $ foo $ unKey $ eid :: String
-                              niceURL = DT.unpack $ DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
-                              niceTitle = DT.unpack title
-                              niceContent = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") $ content
-                              niceVisible = if visible then "VISIBLE" else "HIDDEN"
-                          putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent
-                )
-
-    where foo (PersistInt64 i) = i
+    forM_ posts printBlogPostEntity
 
 dumpBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
@@ -157,7 +161,7 @@ addBlogPostFromFiles fileName = do
 addCommentFromFiles fileName = do
     let entryId = Key $ PersistInt64 (fromIntegral 82)
         name    = DT.pack "bob somebody"
-        text    = Textarea "haha \n lol"
+        text    = Textarea $ DT.pack "haha \n lol"
         visible = False
 
     posted <- getCurrentTime
@@ -180,10 +184,9 @@ editBlogPost i = do
 showBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry    <- myRunDB $ get entryId
-    comments <- myRunDB $ get entryId
 
     case (entry :: Maybe Entry) of (Just e) -> do let content = DT.unpack $ entryContent e
-                                                  print content -- TODO grab the code for displaying a blog post from listBlogPosts
+                                                  printBlogPost entryId e
 
                                                   comments <- myRunDB $ selectList [] [] :: IO [Entity Comment]
 
