@@ -23,6 +23,9 @@ import Data.Char
 import System.Environment ( getArgs )
 import System.IO ( openFile, getContents )
 import System.IO ( IOMode( ReadMode ) )
+import System.FilePath
+import System.Directory
+import qualified Data.List as DL
 
 import qualified Data.ByteString as BS
 import qualified Data.Map as DM
@@ -168,6 +171,14 @@ addCommentFromFiles fileName = do
 
     c <- myRunDB $ insert (Comment entryId posted name text visible)
     print c
+
+
+getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . keepOurs) directoryContents
+    where directoryContents = getDirectoryContents (takeDirectory fileName) :: IO [FilePath]
+          baseName = dropExtension $ takeFileName fileName  :: FilePath
+          keepOurs = filter (DL.isPrefixOf baseName)        :: [FilePath] -> [FilePath]
+          commentFile = filter (DL.isInfixOf "comment")     :: [FilePath] -> [FilePath]
+          addDirectoryPrefix = map ((takeDirectory fileName) </>) :: [FilePath] -> [FilePath]
 
 editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
