@@ -159,8 +159,8 @@ addBlogPostFromFiles fileName = do
     print i -- FIXME tidyup
 
 addCommentFromFiles fileName = do
-    let entryId = Key $ PersistInt64 (fromIntegral 82)
-        name    = DT.pack "bob somebody"
+    let entryId = Key $ PersistInt64 (fromIntegral 81)
+        name    = DT.pack "bob somebody in 81"
         text    = Textarea $ DT.pack "haha \n lol"
         visible = False
 
@@ -181,6 +181,27 @@ editBlogPost i = do
                                                   myRunDB $ update entryId [EntryContent =. content2]
                                    Nothing  -> print "boo"
 
+editComment cid = do
+    let commentId = Key $ PersistInt64 (fromIntegral cid)
+
+    comment <- myRunDB $ get commentId
+
+    case (comment :: Maybe Comment) of (Just c) -> do let name1 = DT.unpack $ commentName c
+                                                          text1 = DT.unpack $ unTextarea $ commentText c
+                                                      writeFile "/tmp/blah.html" (name1 ++ "\n" ++ text1) -- FIXME use a temp file
+
+                                                      r <- system "vim /tmp/blah.html"
+                                                      x <- readFile "/tmp/blah.html"
+
+                                                      let name2 = DT.pack $ head $ lines x
+                                                          text2 = Textarea (DT.pack $ unlines $ drop 1 $ lines x)
+
+                                                      myRunDB $ update commentId [ CommentName =. name2
+                                                                                 , CommentText =. text2
+                                                                                 ]
+
+                                       Nothing  -> print "boo"
+
 showBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry    <- myRunDB $ get entryId
@@ -188,7 +209,7 @@ showBlogPost i = do
     case (entry :: Maybe Entry) of (Just e) -> do let content = DT.unpack $ entryContent e
                                                   printBlogPost entryId e
 
-                                                  comments <- myRunDB $ selectList [] [] :: IO [Entity Comment]
+                                                  comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
 
                                                   forM_ comments (\c -> do let (Entity cid (Comment _ posted name text visible)) = c
                                                                                niceCommentId    = show $ foo $ unKey $ cid :: String
@@ -214,7 +235,8 @@ go ["--list"] = listBlogPosts
 go ["--dump"] = dumpBlogPosts
 
 go ["--show", entryId]      = showBlogPost (read entryId)
-go ["--edit", entryId]      = editBlogPost (read entryId)
+go ["--edit-post", entryId]      = editBlogPost (read entryId)
+go ["--edit-comment", commentId]      = editComment (read commentId)
 go ["--delete", entryId]    = deleteBlogPost (read entryId)
 
 go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
