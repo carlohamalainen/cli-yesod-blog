@@ -4,10 +4,9 @@ Entry
     postedYear  Int
     postedMonth Int
     postedDay   Int
-    content     Text
+    content     Html
     visible     Bool
     EntryYMDMashed postedYear postedMonth postedDay mashedTitle
-    deriving Show
 
 Comment
     entry       EntryId
