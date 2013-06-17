@@ -230,10 +230,9 @@ showBlogPost i = do
                                                                                niceCommentId    = show $ foo $ unKey $ cid :: String
                                                                                niceName         = DT.unpack name
                                                                                niceText         = show $ lines $ DT.unpack $ unTextarea text
-                                                                               niceVisible      = show visible :: String
+                                                                               niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
-
-                                                                           putStrLn $ (show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                                                                           putStrLn $ "comment: " ++ (show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
                                    Nothing  -> print "boo"
     where foo (PersistInt64 i) = i
 
@@ -250,6 +249,8 @@ deleteBlogPost i = do
 setEntryVisible :: Integer -> Bool -> IO ()
 setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [EntryVisible =. visible]
 
+setCommentVisible :: Integer -> Bool -> IO ()
+setCommentVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [CommentVisible =. visible]
 
 go :: [String] -> IO ()
 go ["--list"] = listBlogPosts
@@ -268,8 +269,11 @@ go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin
 
 go ["--add-from-file", fileName]  = addBlogPostFromFile fileName
 
-go ["--set-visible", i]     = setEntryVisible (read i) True
-go ["--set-invisible", i]   = setEntryVisible (read i) False
+go ["--set-post-visible", i]     = setEntryVisible (read i) True
+go ["--set-post-invisible", i]   = setEntryVisible (read i) False
+
+go ["--set-comment-visible", i]     = setCommentVisible (read i) True
+go ["--set-comment-invisible", i]   = setCommentVisible (read i) False
 
 go _ = do
     putStrLn "Usage:"
