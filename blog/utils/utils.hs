@@ -28,10 +28,16 @@ import System.Directory
 import qualified Data.List as DL
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Map as DM
 import qualified Data.Text as DT
+import qualified Data.Text.Lazy as DTL
 import qualified Data.Text.Encoding as DTE
 import qualified Data.Text.Encoding.Error as DTEE
+
+import qualified Text.Blaze as TB
+import qualified Text.Blaze.Html as TBH
+import Text.Blaze.Html.Renderer.Utf8
 
 sanitiseTitle :: Text -> Text
 sanitiseTitle = DT.pack . nukeNonAlNum . (map hack) . DT.unpack . dashes . lowerCase
@@ -93,10 +99,11 @@ printBlogPost eid (Entry title mashedTitle year month day content visible) = do
     let niceEntryId = show $ foo $ unKey $ eid :: String
         niceURL = DT.unpack $ DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
         niceTitle = DT.unpack title
-        niceContent = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") $ content
+        niceContent = DTE.decodeUtf8With DTEE.lenientDecode $ BS.concat . BSL.toChunks $ renderHtml content -- Html converted to Text
+        niceContent' = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") $ niceContent -- rip out newlines, take first 50 characters
         niceVisible = if visible then "VISIBLE" else "HIDDEN"
 
-    putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent
+    putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent'
 
     where foo (PersistInt64 i) = i
 
@@ -114,6 +121,8 @@ dumpBlogPosts = do
     comments <- myRunDB $ selectList [] [] :: IO [Entity Comment]
     forM_ comments print
 
+    return ()
+
 deleteAllBlogPosts = do
     entries <- myRunDB $ selectList [] [] :: IO [Entity Entry]
 
@@ -126,6 +135,7 @@ getYMD :: UTCTime -> (Int, Int, Int)
 getYMD utc = (fromInteger y, m, d)
     where (y, m, d) = toGregorian $ utctDay utc
 
+{-
 makeFakeBlogPosts = do
     (year1, month1, day1) <- liftM getYMD getCurrentTime
     let e1 = Entry (DT.pack "first post") (sanitiseTitle $ DT.pack "first post") year1 month1 day1 (DT.pack "Hi there!") False
@@ -134,10 +144,11 @@ makeFakeBlogPosts = do
     let e2 = Entry (DT.pack "second post") (sanitiseTitle $ DT.pack "second post") year2 month2 day2 (DT.pack "Hi there! Do de dah!") False
 
     forM_ [e1, e2] (myRunDB . insert)
+-}
 
 addBlogPostFromEditor title = do
     r <- system "vim /tmp/blah.html"
-    content <- liftM DT.pack $ readFile "/tmp/blah.html"
+    content <- liftM toHtml $ readFile "/tmp/blah.html"
 
     (year, month, day) <- liftM getYMD getCurrentTime
 
@@ -145,7 +156,7 @@ addBlogPostFromEditor title = do
 
 -- For importing entries; requires year, month, day to be specified.
 addBlogPostFromStdin title year month day = do
-    content <- liftM DT.pack $ getContents
+    content <- liftM toHtml $ getContents
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
 addBlogPostFromFile fileName = do
@@ -163,7 +174,7 @@ addBlogPostFromFile fileName = do
         month   = read $ words ymd !! 1 :: Int
         day     = read $ words ymd !! 2 :: Int
         title   = DT.pack $ head $ tail x
-        content = DT.pack $ unlines $ drop 2 x
+        content = toHtml $ TB.preEscapedToMarkup $ unlines $ drop 2 x
 
     eid <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
@@ -196,11 +207,11 @@ editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry <- myRunDB $ get entryId
 
-    case (entry :: Maybe Entry) of (Just e) -> do let content1 = DT.unpack $ entryContent e
-                                                  writeFile "/tmp/blah.html" content1
+    case (entry :: Maybe Entry) of (Just e) -> do let content1 = renderHtml $ entryContent e
+                                                  BSL.writeFile "/tmp/blah.html" content1
 
                                                   r <- system "vim /tmp/blah.html"
-                                                  content2 <- liftM DT.pack $ readFile "/tmp/blah.html"
+                                                  content2 <- liftM (toHtml . TB.preEscapedToMarkup) $ readFile "/tmp/blah.html"
                                                   myRunDB $ update entryId [EntryContent =. content2]
                                    Nothing  -> print "boo"
 
@@ -229,7 +240,7 @@ showBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
     entry    <- myRunDB $ get entryId
 
-    case (entry :: Maybe Entry) of (Just e) -> do let content = DT.unpack $ entryContent e
+    case (entry :: Maybe Entry) of (Just e) -> do let content = show $ renderHtml $ entryContent e
                                                   printBlogPost entryId e
 
                                                   comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]

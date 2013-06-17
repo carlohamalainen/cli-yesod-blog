@@ -74,6 +74,7 @@ library
                  , time
                  , strict
                  , resourcet
+                 , blaze-markup
 
 executable         blog
     if flag(library-only)
@@ -107,6 +108,8 @@ executable         blog-utils
                      , bytestring
                      , directory
                      , filepath
+                     , blaze-html
+                     , blaze-markup
 
     ghc-options:       -threaded -O2
 
