@@ -456,8 +456,8 @@ dd {
 hr {
   margin: 18px 0;
   border: 0;
-  border-top: 1px solid #eeeeee;
-  border-bottom: 1px solid #ffffff;
+  border-top: 2px solid #000000;
+  border-bottom: 2px solid #000000;
 }
 strong {
   font-weight: bold;
