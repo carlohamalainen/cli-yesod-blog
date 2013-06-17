@@ -142,7 +142,7 @@ addBlogPostFromStdin title year month day = do
     content <- liftM DT.pack $ getContents
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
-addBlogPostFromFiles fileName = do
+addBlogPostFromFile fileName = do
     h <- openFile fileName ReadMode
 
     contents <- BS.hGetContents h
@@ -157,21 +157,25 @@ addBlogPostFromFiles fileName = do
         title   = DT.pack $ head $ tail x
         content = DT.pack $ unlines $ drop 2 x
 
-    i <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
+    eid <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
-    print i -- FIXME tidyup
+    print eid -- FIXME tidyup
 
-addCommentFromFiles fileName = do
-    let entryId = Key $ PersistInt64 (fromIntegral 81)
-        name    = DT.pack "bob somebody in 81"
-        text    = Textarea $ DT.pack "haha \n lol"
+    -- Now the comments, if any.
+    commentFiles <- getCommentFiles fileName
+    forM_ commentFiles (addCommentFromFile eid)
+
+addCommentFromFile entryId commentFile = do
+    x <- liftM lines (readFile commentFile)
+
+    let commentAuthor   = DT.pack $ x !! 0
+        commentDate     = read (x !! 1) :: UTCTime
+        commentText     = Textarea $ DT.pack $ unlines $ drop 2 x
+
         visible = False
 
-    posted <- getCurrentTime
-
-    c <- myRunDB $ insert (Comment entryId posted name text visible)
+    c <- myRunDB $ insert (Comment entryId commentDate commentAuthor commentText visible)
     print c
-
 
 getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . keepOurs) directoryContents
     where directoryContents = getDirectoryContents (takeDirectory fileName) :: IO [FilePath]
@@ -256,7 +260,7 @@ go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
 go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin (DT.pack title) (read year) (read month) (read day)
                                                        print x -- FIXME tidy this up
 
-go ["--add-from-file", fileName]  = addBlogPostFromFiles fileName
+go ["--add-from-file", fileName]  = addBlogPostFromFile fileName
 
 go ["--set-visible", i]     = setEntryVisible (read i) True
 go ["--set-invisible", i]   = setEntryVisible (read i) False

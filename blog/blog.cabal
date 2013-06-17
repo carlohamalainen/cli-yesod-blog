@@ -105,6 +105,8 @@ executable         blog-utils
                      , yesod-default
                      , containers
                      , bytestring
+                     , directory
+                     , filepath
 
     ghc-options:       -threaded -O2
 
