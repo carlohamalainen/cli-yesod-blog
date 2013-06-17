@@ -9,13 +9,6 @@ import time
 import sqlobject
 import unicodedata
 
-def strip_accents(s):
-    """
-    Strip out accented characters. Probably got this from Stackoverflow.
-    """
-
-    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
-
 def _mysql_timestamp_converter(raw):
     """
     Convert a MySQL TIMESTAMP to a floating point number representing
@@ -55,7 +48,7 @@ if __name__ == '__main__':
     password = getpass.getpass()
     db = 'wordpresscarlo2'
 
-    connection = MySQLConnection(user=user, password=password, db=db, conv=conversions)
+    connection = MySQLConnection(user=user, password=password, db=db, conv=conversions, charset='utf8')
 
     class wp_posts(sqlobject.SQLObject):
         class sqlmeta:
@@ -82,7 +75,7 @@ if __name__ == '__main__':
         f = open('%s_%05d.html' % (db, i,), 'w')
 
         f.write(' '.join([str(p.postDate.year), str(p.postDate.month), str(p.postDate.day),]) + '\n')
-        f.write(strip_accents(p.postTitle.decode('latin-1')) + '\n')
+        f.write(p.postTitle + '\n')
         f.write(p.postContent.replace(r'\r\n', r'\n'))
         f.close()
 

@@ -34,10 +34,13 @@ import qualified Data.Text.Encoding as DTE
 import qualified Data.Text.Encoding.Error as DTEE
 
 sanitiseTitle :: Text -> Text
-sanitiseTitle = DT.pack . nukeNonAlNum . DT.unpack . dashes . lowerCase
+sanitiseTitle = DT.pack . nukeNonAlNum . (map hack) . DT.unpack . dashes . lowerCase
     where dashes        = DT.intercalate (DT.pack "-") . DT.words
           lowerCase     = DT.toLower
           nukeNonAlNum  = catMaybes . map (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
+          hack 'ň' = 'n'
+          hack 'é' = 'e'
+          hack c   = c
 
 -- newtype SanitisedTitle = SanitisedTitle Text deriving (Show, Eq, Read)
 -- instance PathPiece SanitisedTitle where
@@ -108,6 +111,9 @@ dumpBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
     forM_ posts print
 
+    comments <- myRunDB $ selectList [] [] :: IO [Entity Comment]
+    forM_ comments print
+
 deleteAllBlogPosts = do
     entries <- myRunDB $ selectList [] [] :: IO [Entity Entry]
 
@@ -143,6 +149,8 @@ addBlogPostFromStdin title year month day = do
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
 addBlogPostFromFile fileName = do
+    print fileName
+
     h <- openFile fileName ReadMode
 
     contents <- BS.hGetContents h
