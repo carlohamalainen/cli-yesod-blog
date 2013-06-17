@@ -241,6 +241,12 @@ deleteBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i) :: KeyBackend Database.Persist.GenericSql.Raw.SqlBackend Entry
     myRunDB $ delete entryId
 
+    comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
+
+    forM_ (map entityToCommentId comments) (myRunDB . delete)
+
+    where entityToCommentId (Entity cid (Comment _ _ _ _ _)) = cid
+
 setEntryVisible :: Integer -> Bool -> IO ()
 setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [EntryVisible =. visible]
 
