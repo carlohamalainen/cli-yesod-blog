@@ -1,8 +1,6 @@
 -- imports copied from app/main.hs
 import Prelude              (IO, print, head, tail, readFile, writeFile)
-import Yesod.Default.Config (fromArgs)
 import Yesod.Default.Main   (defaultMain)
-import Settings             (parseExtra)
 import Application          (makeApplication)
 
 -- my imports
@@ -14,15 +12,12 @@ import Data.Time (UTCTime, getCurrentTime, toGregorian, utctDay)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad (forM_, liftM)
-import Database.Persist.Store (PersistValue(PersistInt64))
 import Database.Persist.GenericSql.Raw (SqlBackend)
-import qualified Data.Text as DT
 import System.Process
 import Data.Maybe
 import Data.Char
 import System.Environment ( getArgs )
-import System.IO ( openFile, getContents )
-import System.IO ( IOMode( ReadMode ) )
+import System.IO (openFile, getContents, IOMode(ReadMode))
 import System.FilePath
 import System.Directory
 import qualified Data.List as DL
@@ -40,10 +35,10 @@ import qualified Text.Blaze.Html as TBH
 import Text.Blaze.Html.Renderer.Utf8
 
 sanitiseTitle :: Text -> Text
-sanitiseTitle = DT.pack . nukeNonAlNum . (map hack) . DT.unpack . dashes . lowerCase
+sanitiseTitle = DT.pack . nukeNonAlNum . map hack . DT.unpack . dashes . lowerCase
     where dashes        = DT.intercalate (DT.pack "-") . DT.words
           lowerCase     = DT.toLower
-          nukeNonAlNum  = catMaybes . map (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
+          nukeNonAlNum  = mapMaybe (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
           hack 'ň' = 'n'
           hack 'é' = 'e'
           hack c   = c
@@ -96,11 +91,11 @@ myRunDB f = do
     runNoLoggingT $ runResourceT $ Database.Persist.Store.runPool dbconf f p
 
 printBlogPost eid (Entry title mashedTitle year month day content visible) = do
-    let niceEntryId = show $ foo $ unKey $ eid :: String
+    let niceEntryId = show $ foo $ unKey eid :: String
         niceURL = DT.unpack $ DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
         niceTitle = DT.unpack title
         niceContent = DTE.decodeUtf8With DTEE.lenientDecode $ BS.concat . BSL.toChunks $ renderHtml content -- Html converted to Text
-        niceContent' = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") $ niceContent -- rip out newlines, take first 50 characters
+        niceContent' = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") niceContent -- rip out newlines, take first 50 characters
         niceVisible = if visible then "VISIBLE" else "HIDDEN"
 
     putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent'
@@ -128,7 +123,7 @@ deleteAllBlogPosts = do
 
     forM_ (map entityToEntryId entries) (myRunDB . delete)
 
-    where entityToEntryId (Entity eid (Entry _ _ _ _ _ _ _)) = eid
+    where entityToEntryId (Entity eid (Entry {})) = eid
 
 
 getYMD :: UTCTime -> (Int, Int, Int)
@@ -156,7 +151,7 @@ addBlogPostFromEditor title = do
 
 -- For importing entries; requires year, month, day to be specified.
 addBlogPostFromStdin title year month day = do
-    content <- liftM toHtml $ getContents
+    content <- liftM toHtml getContents
     myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
 
 addBlogPostFromFile fileName = do
@@ -201,7 +196,8 @@ getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . k
           baseName = dropExtension $ takeFileName fileName  :: FilePath
           keepOurs = filter (DL.isPrefixOf baseName)        :: [FilePath] -> [FilePath]
           commentFile = filter (DL.isInfixOf "comment")     :: [FilePath] -> [FilePath]
-          addDirectoryPrefix = map ((takeDirectory fileName) </>) :: [FilePath] -> [FilePath]
+          directoryName = takeDirectory fileName
+          addDirectoryPrefix = map (directoryName </>) :: [FilePath] -> [FilePath]
 
 editBlogPost i = do
     let entryId = Key $ PersistInt64 (fromIntegral i)
@@ -246,12 +242,12 @@ showBlogPost i = do
                                                   comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
 
                                                   forM_ comments (\c -> do let (Entity cid (Comment _ posted name text visible)) = c
-                                                                               niceCommentId    = show $ foo $ unKey $ cid :: String
+                                                                               niceCommentId    = show $ foo $ unKey cid :: String
                                                                                niceName         = DT.unpack name
                                                                                niceText         = show $ lines $ DT.unpack $ unTextarea text
                                                                                niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
-                                                                           putStrLn $ "comment: " ++ (show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                                                                           putStrLn $ "comment: " ++ show i ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
                                    Nothing  -> print "boo"
     where foo (PersistInt64 i) = i
 
@@ -263,7 +259,7 @@ deleteBlogPost i = do
 
     forM_ (map entityToCommentId comments) (myRunDB . delete)
 
-    where entityToCommentId (Entity cid (Comment _ _ _ _ _)) = cid
+    where entityToCommentId (Entity cid (Comment {})) = cid
 
 setEntryVisible :: Integer -> Bool -> IO ()
 setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [EntryVisible =. visible]
