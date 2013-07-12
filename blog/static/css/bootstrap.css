@@ -7,7 +7,9 @@
  *
  * Designed and built with all the love in the world @twitter by @mdo and @fat.
  */
-article,
+article {
+    display:block;
+}
 aside,
 details,
 figcaption,
@@ -162,7 +164,10 @@ a:hover {
   float: left;
   margin-left: 20px;
 }
-.container,
+.container {
+  margin-top: 20px;
+  width: 940px;
+}
 .navbar-fixed-top .container,
 .navbar-fixed-bottom .container {
   width: 940px;
@@ -343,6 +348,7 @@ h4,
 h5,
 h6 {
   margin: 0;
+  margin-bottom: 10px;
   font-family: inherit;
   font-weight: bold;
   color: inherit;
