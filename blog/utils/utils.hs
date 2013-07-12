@@ -34,6 +34,15 @@ import qualified Text.Blaze as TB
 import qualified Text.Blaze.Html as TBH
 import Text.Blaze.Html.Renderer.Utf8
 
+import Database.Persist.GenericSql
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Control (MonadBaseControl (..))
+import Control.Monad.Trans.Resource (runResourceT, ResourceT)
+import Control.Monad.Logger -- (runStdoutLoggingT, LoggingT)
+import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
+
+
+
 sanitiseTitle :: Text -> Text
 sanitiseTitle = DT.pack . nukeNonAlNum . map hack . DT.unpack . dashes . lowerCase
     where dashes        = DT.intercalate (DT.pack "-") . DT.words
@@ -81,7 +90,7 @@ MonadLogger:
 
 
 myRunDB f = do
-    conf <- Yesod.Default.Config.loadConfig $ (configSettings Development) { csParseExtra = parseExtra }
+    conf <- Yesod.Default.Config.loadConfig $ (configSettings Production) { csParseExtra = parseExtra }
 
     dbconf <- withYamlEnvironment "config/sqlite.yml" (appEnv conf)
               Database.Persist.Store.loadConfig >>=
@@ -89,6 +98,37 @@ myRunDB f = do
     p <- Database.Persist.Store.createPoolConfig (dbconf :: Settings.PersistConfig)
 
     runNoLoggingT $ runResourceT $ Database.Persist.Store.runPool dbconf f p
+
+
+-- TODO Check the code here:
+-- https://github.com/yesodweb/yesod/wiki/Using-Database.Persist.runPool-without-Foundation
+-- and see if it provides a better way to sort out myRunDB, especially with choosing the right
+-- configSettings parameter.
+
+-- also http://www.yesodweb.com/blog/2011/12/resourcet
+
+data WorkerConf = WorkerConf { getConfig :: Settings.PersistConfig
+                             , getPool   :: Database.Persist.GenericSql.ConnectionPool
+                             }
+
+type WorkerM = ReaderT WorkerConf (ResourceT (LoggingT IO))
+
+blah = do
+    conf <- Yesod.Default.Config.loadConfig $ (configSettings (confName "Development")) { csParseExtra = parseExtra }
+
+    dbconf <- withYamlEnvironment "config/sqlite.yml" (appEnv conf)
+              Database.Persist.Store.loadConfig >>=
+              Database.Persist.Store.applyEnv
+    p <- Database.Persist.Store.createPoolConfig (dbconf :: Settings.PersistConfig)
+
+    let workerConf = WorkerConf dbconf p
+
+    -- print "derp"
+    return (dbconf, p)
+
+    where confName "Development" = Development
+          confName "Production"  = Production
+          confName x             = error $ "unknown configuration name: " ++ x
 
 printBlogPost eid (Entry title mashedTitle year month day content visible) = do
     let niceEntryId = show $ foo $ unKey eid :: String

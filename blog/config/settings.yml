@@ -17,3 +17,5 @@ Staging:
 Production:
   #approot: "http://www.example.com"
   <<: *defaults
+  port: 4321
+  approot: "http://localhost:8080"

@@ -20,6 +20,7 @@ library
                      Settings.StaticFiles
                      Settings.Development
                      Handler.Home
+                     RecaptchaKeys
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -75,6 +76,7 @@ library
                  , strict
                  , resourcet
                  , blaze-markup
+                 , yesod-recaptcha
 
 executable         blog
     if flag(library-only)
@@ -110,7 +112,9 @@ executable         blog-utils
                      , filepath
                      , blaze-html
                      , blaze-markup
-
+                     , transformers
+                     , monad-control
+ 
     ghc-options:       -threaded -O2
 
 test-suite test
