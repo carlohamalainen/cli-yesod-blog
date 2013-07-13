@@ -11,6 +11,7 @@ import Database.Persist.Store (PersistValue(PersistInt64))
 import qualified Data.Text as DT
 
 import Text.Printf
+import Data.Maybe
 
 commentForm :: EntryId -> Form Comment
 commentForm entryId = renderDivs $ Comment
@@ -45,18 +46,13 @@ $else
     -- the printf into the #{mm} in the hamlet.
     where deconstructEntryEntity (Entity _ (Entry title mashedTitle year month day content visible)) = (title, mashedTitle, year, month, printf "%02d" month :: String, day, printf "%02d" day :: String, content, visible)
 
-getEntryR :: EntryId -> Handler RepPlain
-getEntryR eid = do
-    entry <- runDB $ get eid
-
-    -- return $ RepPlain $ toContent $ show entry
-    return $ RepPlain "FIXME"
-
 getEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 getEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid] [Asc CommentPosted]
+                                                                                                        (commentWidget, enctype) <- generateFormPost (commentForm eid)
+
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
@@ -73,6 +69,39 @@ getEntryLongR year month day mashedTitle = do
                 <h3>#{name}
                 <h4>#{show posted}
                 <p>#{toHtml text}
-            <hr>
+        <section>
+            <h1>_{MsgAddCommentHeading}
+
+            <form method=post enctype=#{enctype}>
+                ^{commentWidget}
+                <div>
+                    <input type=submit value=_{MsgAddCommentButton}>
+
 |]
               _                                                                            -> notFound
+
+
+postEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
+postEntryLongR year month day mashedTitle = do
+    e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
+
+    let entryId = entityToEntryId (fromJust e) -- FIXME handle the Nothing case here
+
+    ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
+    case res of
+        FormSuccess comment -> do
+            _ <- runDB $ insert comment
+            setMessageI MsgCommentAdded
+            redirect $ EntryLongR year month day mashedTitle
+            -- redirect $ HomeR
+        _ -> defaultLayout $ do
+            setTitleI MsgPleaseCorrectComment
+            [whamlet|
+<form method=post enctype=#{enctype}>
+    ^{commentWidget}
+    <div>
+        <input type=submit value=_{MsgAddCommentButton}>
+|]
+
+
+    where entityToEntryId (Entity eid (Entry {})) = eid
