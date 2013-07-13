@@ -301,6 +301,10 @@ deleteBlogPost i = do
 
     where entityToCommentId (Entity cid (Comment {})) = cid
 
+deleteComment i = do
+    let commentId = Key $ PersistInt64 (fromIntegral i) :: KeyBackend Database.Persist.GenericSql.Raw.SqlBackend Comment
+    myRunDB $ delete commentId
+
 setEntryVisible :: Integer -> Bool -> IO ()
 setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [EntryVisible =. visible]
 
@@ -314,7 +318,8 @@ go ["--dump"] = dumpBlogPosts
 go ["--show", entryId]      = showBlogPost (read entryId)
 go ["--edit-post", entryId]      = editBlogPost (read entryId)
 go ["--edit-comment", commentId]      = editComment (read commentId)
-go ["--delete", entryId]    = deleteBlogPost (read entryId)
+go ["--delete-post", entryId]    = deleteBlogPost (read entryId)
+go ["--delete-comment", commentId]    = deleteComment (read commentId)
 
 go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
                                  print x -- FIXME tidy this up
