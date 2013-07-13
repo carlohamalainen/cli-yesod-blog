@@ -711,7 +711,9 @@ input[type="image"] {
   box-shadow: none;
 }
 textarea {
-  height: auto;
+  /* height: auto; */
+  width: 80%;
+  height: 400px;
 }
 input[type="hidden"] {
   display: none;
