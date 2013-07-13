@@ -50,7 +50,7 @@ getEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 getEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
-    case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid] [Asc CommentPosted]
+    case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
                                                                                                         defaultLayout $ do
