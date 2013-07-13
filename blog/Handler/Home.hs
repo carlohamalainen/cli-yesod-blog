@@ -86,14 +86,20 @@ postEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
     let entryId = entityToEntryId (fromJust e) -- FIXME handle the Nothing case here
+        title   = entityToTitle (fromJust e) -- FIXME handle the Nothing case?
 
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
         FormSuccess comment -> do
             _ <- runDB $ insert comment
-            setMessageI MsgCommentAdded
-            redirect $ EntryLongR year month day mashedTitle
-            -- redirect $ HomeR
+            defaultLayout $ do
+                setTitleI MsgCommentAdded
+                [whamlet|
+<p> Comment has been added to the moderation queue.
+
+<p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
+
+|]
         _ -> defaultLayout $ do
             setTitleI MsgPleaseCorrectComment
             [whamlet|
@@ -104,4 +110,5 @@ postEntryLongR year month day mashedTitle = do
 |]
 
 
-    where entityToEntryId (Entity eid (Entry {})) = eid
+    where entityToEntryId (Entity eid (Entry {})) = eid -- FIXME should not have to roll our own for these?
+          entityToTitle (Entity _ (Entry title _ _ _ _ _ _)) = title -- FIXME use standard function to rip out title, templated something?
