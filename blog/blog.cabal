@@ -101,8 +101,8 @@ executable         blog-utils
                      , resourcet
                      , monad-logger
                      , time
-                     , persistent
-                     , persistent-sqlite
+                     , persistent               >= 1.1        && < 1.2
+                     , persistent-sqlite        >= 1.1        && < 1.2
                      , process
                      , text
                      , yesod-default
@@ -114,6 +114,9 @@ executable         blog-utils
                      , blaze-markup
                      , transformers
                      , monad-control
+                     , network
+                     , rss
+                     , safe
  
     ghc-options:       -threaded -O2
 

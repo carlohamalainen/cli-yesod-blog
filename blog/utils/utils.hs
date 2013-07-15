@@ -41,7 +41,11 @@ import Control.Monad.Trans.Resource (runResourceT, ResourceT)
 import Control.Monad.Logger -- (runStdoutLoggingT, LoggingT)
 import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 
-
+import qualified Text.RSS as RSS
+import Network.URI
+import Data.Time.Calendar
+import Data.Time.Clock
+import Safe
 
 sanitiseTitle :: Text -> Text
 sanitiseTitle = DT.pack . nukeNonAlNum . map hack . DT.unpack . dashes . lowerCase
@@ -311,6 +315,47 @@ setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i
 setCommentVisible :: Integer -> Bool -> IO ()
 setCommentVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [CommentVisible =. visible]
 
+-- My posts are specified by year/month/day and mashed-title, so
+-- pretend that they all happened at midday.
+midday = (fromIntegral $ 12 * 3600)
+
+latestPost :: [Entry] -> UTCTime
+latestPost entries = maximum dates
+    where dateOfPost :: Entry -> UTCTime
+          dateOfPost (Entry _ _ year month day _ _) = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
+
+          dates = map dateOfPost entries :: [UTCTime]
+
+entryToItem :: Entry -> [RSS.ItemElem]
+entryToItem (Entry title mashedTitle year month day content visible) = [ RSS.Title $ DT.unpack title
+                                                                       , RSS.Link postURI
+                                                                       , RSS.Author "Carlo Hamalainen"
+                                                                       , RSS.Comments commentURI
+                                                                       , RSS.PubDate postDateTime
+                                                                       , RSS.Guid False postURL
+                                                                       ]
+    where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
+          postURL = "http://carlo-hamalainen.net/blog/" ++ (show year) ++ "/" ++ (show month) ++ "/" ++ (show day) ++ "/" ++ (DT.unpack mashedTitle)
+          postURI = fromJust $ parseURI postURL
+          commentURL = postURL ++ "#comments"
+          commentURI = fromJust $ parseURI commentURL
+
+generateRSS = do
+    entryEntities <- myRunDB $ selectList [] [] :: IO [Entity Entry]
+
+    let entries = map entityVal entryEntities :: [Entry]
+        items = map entryToItem entries :: [[RSS.ItemElem]]
+
+        channel = [ RSS.Language "en-US" -- FIXME change to en-au? utf8?
+                  , RSS.Copyright "Carlo Hamalainen"
+                  , RSS.WebMaster "carlo@carlo-hamalainen.net"
+                  , RSS.LastBuildDate $ UTCTime (fromGregorian 2011 12 16) (fromIntegral $ 12 * 3600) -- default to midday -- FIXME get max date
+                  , RSS.Generator "rss-3000"
+                  ]
+
+    return $ (RSS.showXML . RSS.rssToXML) (RSS.RSS "Carlo Hamalainen" (fromJust $ parseURI "http://carlo-hamalainen.net/blog") "Carlo Hamalainen" channel items)
+
+
 go :: [String] -> IO ()
 go ["--list"] = listBlogPosts
 go ["--dump"] = dumpBlogPosts
@@ -334,6 +379,8 @@ go ["--set-post-invisible", i]   = setEntryVisible (read i) False
 
 go ["--set-comment-visible", i]     = setCommentVisible (read i) True
 go ["--set-comment-invisible", i]   = setCommentVisible (read i) False
+
+go ["--rss"] = generateRSS >>= putStrLn
 
 go _ = do
     putStrLn "Usage:"

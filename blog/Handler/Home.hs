@@ -59,6 +59,7 @@ getEntryLongR year month day mashedTitle = do
 <h1>#{title'}
 <article>#{content'}
     <section .comments>
+        <div id="comments"></div>
         <h2>_{MsgCommentsHeading}
         <br>
         $if null comments
