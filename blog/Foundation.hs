@@ -23,6 +23,7 @@ import System.Log.FastLogger (Logger)
 import Data.Text
 import Yesod.ReCAPTCHA
 import qualified RecaptchaKeys as RK
+import qualified Data.Text as DT
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -157,5 +158,5 @@ getExtra = fmap (appExtra . settings) getYesod
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
 instance YesodReCAPTCHA App where
-    recaptchaPublicKey  = return RK.recaptchaPublicKey
-    recaptchaPrivateKey = return RK.recaptchaPrivateKey
+    recaptchaPublicKey  = return $ DT.pack RK.recaptchaPublicKey
+    recaptchaPrivateKey = return $ DT.pack RK.recaptchaPrivateKey
