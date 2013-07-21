@@ -48,13 +48,30 @@ import Data.Time.Clock
 import Safe
 
 sanitiseTitle :: Text -> Text
-sanitiseTitle = DT.pack . nukeNonAlNum . map hack . DT.unpack . dashes . lowerCase
+sanitiseTitle = wpHack . DT.pack . nukeNonAlNum . map hack . map dotToDash . DT.unpack . dashes . lowerCase
     where dashes        = DT.intercalate (DT.pack "-") . DT.words
           lowerCase     = DT.toLower
           nukeNonAlNum  = mapMaybe (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
+
+          dotToDash '.' = '-'
+          dotToDash c = c
+
           hack 'ň' = 'n'
           hack 'é' = 'e'
           hack c   = c
+
+          -- I'll be damned if I can be bothered to work out Wordpress' scheme for making permalinks, so here
+          -- are a few manual exceptions to sanitiseTitle.
+          wpHack t
+            | t == DT.pack "pyx-0-10-experimental-package"                              = DT.pack "pyx-010-experimental-package"
+            | t == DT.pack "pyx-0-10-experimental-package"                              = DT.pack "pyx-010-experimental-package"
+            | t == DT.pack "telstra-prepaid-wireless-broadband-on-ubuntu-9-0410-04"     = DT.pack "telstra-prepaid-wireless-broadband-on-ubuntu-9-04"
+            | t == DT.pack "recovery-of-data-from-a-raid-5-disk"                        = DT.pack "recovery-of-data-from-a-raid5-disk"
+            | t == DT.pack "scipy-znst8iosbase4initd1ev-and-link-flags"                 = DT.pack "scipy-_znst8ios_base4initd1ev-and-link-flags"
+            | t == DT.pack "passing-a-numpy-array-to-a-c-function"                      = DT.pack "passing-numpy-array-to-c-function"
+            | t == DT.pack "xfce4-xfapplet-plugin-for-centos-6-3"                       = DT.pack "xfce4-xfapplet-panel-for-centos-6-3"
+            | otherwise                                                                 = t
+
 
 -- newtype SanitisedTitle = SanitisedTitle Text deriving (Show, Eq, Read)
 -- instance PathPiece SanitisedTitle where
