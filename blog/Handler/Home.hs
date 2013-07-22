@@ -12,6 +12,8 @@ import qualified Data.Text as DT
 
 import Text.Printf
 import Data.Maybe
+import Control.Applicative
+import Yesod.ReCAPTCHA
 
 commentForm :: EntryId -> Form Comment
 commentForm entryId = renderDivs $ Comment
@@ -19,7 +21,7 @@ commentForm entryId = renderDivs $ Comment
     <*> aformM (liftIO getCurrentTime)
     <*> areq textField (fieldSettingsLabel MsgCommentName) Nothing
     <*> areq textareaField (fieldSettingsLabel MsgCommentText) Nothing
-    <*> pure False -- <* recaptchaAForm
+    <*> pure False <* recaptchaAForm
 
 getHomeR :: Handler RepHtml
 getHomeR = do
