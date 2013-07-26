@@ -3996,3 +3996,12 @@ a.thumbnail:hover {
 .invisible {
   visibility: hidden;
 }
+
+
+/* Horizontal scrollbars on the pre stuff, thanks to http://stackoverflow.com/questions/12418855/css-display-vertical-scrollbar-on-pre-tag */
+pre {
+    overflow: auto;
+    word-break: normal !important;
+    word-wrap: normal !important;
+    white-space: pre !important;
+}
