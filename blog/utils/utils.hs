@@ -372,6 +372,19 @@ generateRSS = do
 
     return $ (RSS.showXML . RSS.rssToXML) (RSS.RSS "Carlo Hamalainen" (fromJust $ parseURI "http://carlo-hamalainen.net/blog") "Carlo Hamalainen" channel items)
 
+reportUnmoderatedComments = do
+    comments <- myRunDB $ selectList [CommentVisible ==. False] [Desc CommentPosted]
+
+    forM_ comments (\c -> do let (Entity cid (Comment eid posted name text visible)) = c
+                                 niceEntryId      = show $ foo $ unKey eid :: String
+                                 niceCommentId    = show $ foo $ unKey cid :: String
+                                 niceName         = DT.unpack name
+                                 niceText         = show $ lines $ DT.unpack $ unTextarea text
+                                 niceVisible      = if visible then "VISIBLE" else "HIDDEN"
+
+                             putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+
+    where foo (PersistInt64 i) = i
 
 go :: [String] -> IO ()
 go ["--list"] = listBlogPosts
@@ -396,6 +409,8 @@ go ["--set-post-invisible", i]   = setEntryVisible (read i) False
 
 go ["--set-comment-visible", i]     = setCommentVisible (read i) True
 go ["--set-comment-invisible", i]   = setCommentVisible (read i) False
+
+go ["--report-unmoderated"] = reportUnmoderatedComments
 
 go ["--rss"] = generateRSS >>= putStrLn
 
