@@ -136,6 +136,10 @@ instance YesodPersist App where
 
 instance YesodAuth App where
     type AuthId App = Text
+    getAuthId = return . Just . credsIdent
+
+    authPlugins _ = [ authBrowserId ]
+    authHttpManager = httpManager
 
     loginDest _ = HomeR
     logoutDest _ = HomeR
