@@ -1,4 +1,6 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Handler.Home where
 
 import Import
@@ -14,6 +16,20 @@ import Text.Printf
 import Data.Maybe
 import Control.Applicative
 import Yesod.ReCAPTCHA
+
+---------------------------------------------------------------------
+data Person = Person { personName :: Text }
+    deriving Show
+
+personForm :: Form Person
+personForm = renderDivs $ Person <$> areq textField "Name" Nothing
+
+getFormResult f = do
+    (result, _) <- aFormToForm f
+    return result
+
+---------------------------------------------------------------------
+
 
 commentForm :: EntryId -> Form Comment
 commentForm entryId = renderDivs $ Comment
