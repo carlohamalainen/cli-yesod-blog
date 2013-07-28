@@ -2,7 +2,7 @@ Default: &defaults
   host: "*4" # any IPv4 host
   port: 4000
   approot: "http://localhost:4000"
-  copyright: Insert copyright statement here
+  copyright: Copyright Carlo Hamalainen 2007-2013
   #analytics: UA-YOURCODE
 
 Development:
@@ -18,4 +18,5 @@ Production:
   #approot: "http://www.example.com"
   <<: *defaults
   port: 4321
-  approot: "http://carlo-hamalainen.net"
+  # approot: "http://carlo-hamalainen.net"
+  approot: "http://localhost:8080"

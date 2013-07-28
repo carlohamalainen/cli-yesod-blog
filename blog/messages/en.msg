@@ -1,5 +1,5 @@
 BlogTitle: Carlo Hamalainen
-WelcomeHomepage: Here's the archive.
+WelcomeHomepage: Carlo Hamalainen
 NoEntries: nada
 CommentsHeading: Comments
 NoComments: No comments

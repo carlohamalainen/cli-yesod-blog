@@ -51,13 +51,15 @@ getHomeR = do
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
         [whamlet|
+
+<h1><a href="http://carlo-hamalainen.net/blog">Carlo Hamalainen</a>
+<hr>
 $if null entries
     <p>_{MsgNoEntries}
 $else
     <ul>
         $forall (title, mashedTitle, year, month, mm, day, dd, content, visible) <- entriesAsTuples
             <li> <a href=@{EntryLongR year month day mashedTitle}>#{year}-#{mm}-#{dd} #{title}</a>
-<p>Boo</p>
 |]
 
     -- This deconstruction to a tuple is a bit clunky, but I can't work out how to put
@@ -74,6 +76,8 @@ getEntryLongR year month day mashedTitle = do
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
+<p align="right"><h1><a href="http://carlo-hamalainen.net/blog">Carlo Hamalainen</a>
+<hr>
 <h1>#{title'}
 <article>#{content'}
     <section .comments>
