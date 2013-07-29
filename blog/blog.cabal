@@ -77,6 +77,7 @@ library
                  , resourcet
                  , blaze-markup
                  , yesod-recaptcha
+                 , mime-mail
 
 executable         blog
     if flag(library-only)

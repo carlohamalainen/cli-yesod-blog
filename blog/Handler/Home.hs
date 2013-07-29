@@ -17,6 +17,9 @@ import Data.Maybe
 import Control.Applicative
 import Yesod.ReCAPTCHA
 
+import Network.Mail.Mime
+import qualified Data.Text.Lazy as DTL
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -115,6 +118,13 @@ postEntryLongR year month day mashedTitle = do
     case res of
         FormSuccess comment -> do
             _ <- runDB $ insert comment
+
+            let Comment _ _ name text _ = comment
+                subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
+
+            x <- liftIO $ simpleMail (Address (Just "blog") "carlo@carlo-hamalainen.net") (Address (Just "blog") "carlo@carlo-hamalainen.net") subjectLine (DTL.pack $ DT.unpack $ unTextarea text) (DTL.pack $ DT.unpack $ unTextarea text) []
+            liftIO $ renderSendMail x
+
             defaultLayout $ do
                 setTitleI MsgCommentAdded
                 [whamlet|
