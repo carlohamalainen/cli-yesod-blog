@@ -276,6 +276,8 @@ editBlogPost i = do
                                                   myRunDB $ update entryId [EntryContent =. content2]
                                    Nothing  -> print "boo"
 
+-- FIXME add url/email to the edit thing, in case have to tidy
+-- up dodgy/spammy comment.
 editComment cid = do
     let commentId = Key $ PersistInt64 (fromIntegral cid)
 
