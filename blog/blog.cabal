@@ -78,6 +78,9 @@ library
                  , blaze-markup
                  , yesod-recaptcha
                  , mime-mail
+                 , safe
+                 , network
+                 , rss
 
 executable         blog
     if flag(library-only)

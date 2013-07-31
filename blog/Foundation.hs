@@ -165,4 +165,5 @@ instance YesodReCAPTCHA App where
     recaptchaPublicKey  = return $ DT.pack RK.recaptchaPublicKey
     recaptchaPrivateKey = return $ DT.pack RK.recaptchaPrivateKey
 
+    -- For testing:
     -- insecureRecaptchaBackdoor = return (Just "...")

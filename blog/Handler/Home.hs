@@ -20,6 +20,15 @@ import Yesod.ReCAPTCHA
 import Network.Mail.Mime
 import qualified Data.Text.Lazy as DTL
 
+import qualified Text.RSS as RSS
+import Network.URI
+import Data.Time.Calendar
+import Data.Time.Clock
+import Safe
+
+import Data.List (sortBy)
+import Data.Function (on)
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -41,6 +50,48 @@ commentForm entryId = renderDivs $ Comment
     <*> areq textField (fieldSettingsLabel MsgCommentName) Nothing
     <*> areq textareaField (fieldSettingsLabel MsgCommentText) Nothing
     <*> pure False <* recaptchaAForm
+
+-- My posts are specified by year/month/day and mashed-title, so
+-- pretend that they all happened at midday.
+midday = fromIntegral (12*3600 :: Integer)
+
+latestPost :: [Entry] -> UTCTime
+latestPost entries = maximum dates
+    where dates = map dateOfPost entries :: [UTCTime]
+
+dateOfPost :: Entry -> UTCTime
+dateOfPost (Entry _ _ year month day _ _) = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
+
+entryToItem :: Entry -> [RSS.ItemElem]
+entryToItem (Entry title mashedTitle year month day content visible) = [ RSS.Title $ DT.unpack title
+                                                                       , RSS.Link postURI
+                                                                       , RSS.Author "Carlo Hamalainen"
+                                                                       , RSS.Comments commentURI
+                                                                       , RSS.PubDate postDateTime
+                                                                       , RSS.Guid False postURL
+                                                                       ]
+    where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
+          postURL = "http://carlo-hamalainen.net/blog/" ++ (show year) ++ "/" ++ (show month) ++ "/" ++ (show day) ++ "/" ++ (DT.unpack mashedTitle)
+          postURI = fromJust $ parseURI postURL
+          commentURL = postURL ++ "#comments"
+          commentURI = fromJust $ parseURI commentURL
+
+getFeedR :: Handler RepXml
+getFeedR = do
+    entryEntities <- runDB $ selectList [] []
+
+    let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
+        items   = map entryToItem entries :: [[RSS.ItemElem]]
+
+        channel = [ RSS.Language "en-US" -- FIXME change to en-au? utf8?
+                  , RSS.Copyright "Carlo Hamalainen"
+                  , RSS.WebMaster "carlo@carlo-hamalainen.net"
+                  , RSS.LastBuildDate $ latestPost entries
+                  , RSS.Generator "rss-3000"
+                  ]
+
+    -- FIXME pull hard-coded name/url from config.
+    return $ RepXml $ toContent $ (RSS.showXML . RSS.rssToXML) (RSS.RSS "Carlo Hamalainen" (fromJust $ parseURI "http://carlo-hamalainen.net/blog") "Carlo Hamalainen" channel items)
 
 getHomeR :: Handler RepHtml
 getHomeR = do
@@ -117,7 +168,7 @@ postEntryLongR year month day mashedTitle = do
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
         FormSuccess comment -> do
-            _ <- runDB $ insert comment
+            _ <- runDB $ insert comment -- FIXME check length of comment? Rate limit comments by IP???
 
             let Comment _ _ name text _ = comment
                 subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"

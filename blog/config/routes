@@ -6,4 +6,6 @@
 
 /blog HomeR GET
 
+/blog/feed FeedR GET
+
 /blog/#Int/#Int/#Int/#Text EntryLongR GET POST
