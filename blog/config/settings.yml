@@ -18,5 +18,5 @@ Production:
   #approot: "http://www.example.com"
   <<: *defaults
   port: 4321
-  # approot: "http://carlo-hamalainen.net"
-  approot: "http://localhost:8080"
+  approot: "http://carlo-hamalainen.net"
+  # approot: "http://localhost:8080"

@@ -243,14 +243,18 @@ addBlogPostFromFile fileName = do
 addCommentFromFile entryId commentFile = do
     x <- liftM lines (readFile commentFile)
 
-    let commentAuthor   = DT.pack $ x !! 0
-        commentDate     = read (x !! 1) :: UTCTime
-        commentText     = Textarea $ DT.pack $ unlines $ drop 2 x
+    let commentAuthor       = DT.pack $ x !! 0
+        commentAuthorEmail  = castTextToMaybe $ DT.pack $ x !! 1
+        commentAuthorUrl    = castTextToMaybe $ DT.pack $ x !! 2
+        commentDate         = read (x !! 3) :: UTCTime
+        commentText         = Textarea $ DT.pack $ unlines $ drop 4 x
 
         visible = False
 
-    c <- myRunDB $ insert (Comment entryId commentDate commentAuthor commentText visible)
-    print c
+    c <- myRunDB $ insert (Comment entryId commentDate commentAuthor commentAuthorEmail commentAuthorUrl commentText visible)
+    print c -- FIXME do something more verbose
+
+    where castTextToMaybe s = if s == DT.pack "" then Nothing else Just s
 
 getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . keepOurs) directoryContents
     where directoryContents = getDirectoryContents (takeDirectory fileName) :: IO [FilePath]
@@ -302,9 +306,11 @@ showBlogPost i = do
 
                                                   comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
 
-                                                  forM_ comments (\c -> do let (Entity cid (Comment _ posted name text visible)) = c
+                                                  forM_ comments (\c -> do let (Entity cid (Comment _ posted name email url text visible)) = c
                                                                                niceCommentId    = show $ foo $ unKey cid :: String
                                                                                niceName         = DT.unpack name
+                                                                               niceEmail        = DT.unpack $ maybeTextToText email
+                                                                               niceUrl          = DT.unpack $ maybeTextToText url
                                                                                niceText         = show $ lines $ DT.unpack $ unTextarea text
                                                                                niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
@@ -335,16 +341,21 @@ setCommentVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral
 reportUnmoderatedComments = do
     comments <- myRunDB $ selectList [CommentVisible ==. False] [Desc CommentPosted]
 
-    forM_ comments (\c -> do let (Entity cid (Comment eid posted name text visible)) = c
+    forM_ comments (\c -> do let (Entity cid (Comment eid posted name email url text visible)) = c
                                  niceEntryId      = show $ foo $ unKey eid :: String
                                  niceCommentId    = show $ foo $ unKey cid :: String
                                  niceName         = DT.unpack name
+                                 niceEmail        = DT.unpack $ maybeTextToText email
+                                 niceUrl          = DT.unpack $ maybeTextToText url
                                  niceText         = show $ lines $ DT.unpack $ unTextarea text
                                  niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
-                             putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                             putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceEmail ++ " " ++ niceUrl ++ " " ++ niceText)
 
     where foo (PersistInt64 i) = i
+
+maybeTextToText (Just t) = t    -- FIXME something like this is surely standard.
+maybeTextToText Nothing  = DT.pack ""
 
 go :: [String] -> IO ()
 go ["--list"] = listBlogPosts

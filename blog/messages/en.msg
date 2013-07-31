@@ -4,6 +4,8 @@ NoEntries: nada
 CommentsHeading: Comments
 NoComments: No comments
 CommentName: Name
+CommentEmail: email (not published)
+CommentUrl: URL (optional)
 CommentText: Comment
 AddCommentHeading: Add your comment
 AddCommentButton: Submit

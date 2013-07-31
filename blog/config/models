@@ -12,6 +12,8 @@ Comment
     entry       EntryId
     posted      UTCTime
     name        Text
+    email       Text Maybe
+    url         Text Maybe
     text        Textarea
     visible     Bool
     deriving Show

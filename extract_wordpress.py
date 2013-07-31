@@ -68,7 +68,7 @@ if __name__ == '__main__':
     for p in wp_posts.select():
         if p.postStatus != 'publish': continue
 
-        comments = [(c.commentAuthor, c.commentDate, c.commentContent) for c in wp_comments.select(wp_comments.q.commentPostID==p.id).orderBy('commentDate') if c.commentApproved == '1' and c.commentType == '']
+        comments = [(c.commentAuthor, c.commentAuthorEmail, c.commentAuthorUrl, c.commentDate, c.commentContent) for c in wp_comments.select(wp_comments.q.commentPostID==p.id).orderBy('commentDate') if c.commentApproved == '1' and c.commentType == '']
 
 
         print i
@@ -80,9 +80,11 @@ if __name__ == '__main__':
         f.close()
 
         c = 0
-        for (comment_author, comment_date, comment_content) in comments:
+        for (comment_author, comment_author_email, comment_author_url, comment_date, comment_content) in comments:
             c_file = open('%s_%05d_comment%05d.html' % (db, i, c), 'w')
             c_file.write(comment_author + '\n')
+            c_file.write(comment_author_email + '\n')
+            c_file.write(comment_author_url   + '\n')
             c_file.write(comment_date.strftime('%Y-%m-%d %H:%M:%S UTC') + '\n')
             c_file.write(comment_content)
             c_file.close()

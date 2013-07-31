@@ -48,6 +48,8 @@ commentForm entryId = renderDivs $ Comment
     <$> pure entryId
     <*> aformM (liftIO getCurrentTime)
     <*> areq textField (fieldSettingsLabel MsgCommentName) Nothing
+    <*> aopt emailField (fieldSettingsLabel MsgCommentEmail) Nothing
+    <*> aopt urlField (fieldSettingsLabel MsgCommentUrl) Nothing
     <*> areq textareaField (fieldSettingsLabel MsgCommentText) Nothing
     <*> pure False <* recaptchaAForm
 
@@ -141,9 +143,13 @@ getEntryLongR year month day mashedTitle = do
         $if null comments
             <p>_{MsgNoComments}
         $else
-            $forall Comment _entry posted name text visible <- map entityVal comments
+            $forall Comment _entry posted name email url text visible <- map entityVal comments
                 <hr>
-                <h3>#{name}
+                $if isNothing url
+                    <h3>#{name}
+                $else
+                    <h3><a href=#{fromJust url}>#{name}</a>
+                <h3>#{name} #{fromMaybe "" url}
                 <h4>#{show posted}
                 <p>#{toHtml text}
         <section>
@@ -170,7 +176,7 @@ postEntryLongR year month day mashedTitle = do
         FormSuccess comment -> do
             _ <- runDB $ insert comment -- FIXME check length of comment? Rate limit comments by IP???
 
-            let Comment _ _ name text _ = comment
+            let Comment _ _ name _ _ text _ = comment
                 subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
 
             x <- liftIO $ simpleMail (Address (Just "blog") "carlo@carlo-hamalainen.net") (Address (Just "blog") "carlo@carlo-hamalainen.net") subjectLine (DTL.pack $ DT.unpack $ unTextarea text) (DTL.pack $ DT.unpack $ unTextarea text) []
