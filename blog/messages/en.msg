@@ -1,4 +1,5 @@
 BlogTitle: Carlo Hamalainen
+BlogDescription: Carlo Hamalainen
 WelcomeHomepage: Carlo Hamalainen
 NoEntries: nada
 CommentsHeading: Comments

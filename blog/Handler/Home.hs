@@ -29,6 +29,14 @@ import Safe
 import Data.List (sortBy)
 import Data.Function (on)
 
+import Data.Yaml (decodeFile, Value)
+import Data.Aeson.Types
+
+import Control.Monad
+
+import Yesod.Default.Config
+
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -64,36 +72,44 @@ latestPost entries = maximum dates
 dateOfPost :: Entry -> UTCTime
 dateOfPost (Entry _ _ year month day _ _) = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
 
-entryToItem :: Entry -> [RSS.ItemElem]
-entryToItem (Entry title mashedTitle year month day content visible) = [ RSS.Title $ DT.unpack title
-                                                                       , RSS.Link postURI
-                                                                       , RSS.Author "Carlo Hamalainen"
-                                                                       , RSS.Comments commentURI
-                                                                       , RSS.PubDate postDateTime
-                                                                       , RSS.Guid False postURL
-                                                                       ]
+entryToItem :: String -> String -> Entry -> [RSS.ItemElem]
+entryToItem url author (Entry title mashedTitle year month day content visible) = [ RSS.Title $ DT.unpack title
+                                                                                  , RSS.Link postURI
+                                                                                  , RSS.Author author
+                                                                                  , RSS.Comments commentURI
+                                                                                  , RSS.PubDate postDateTime
+                                                                                  , RSS.Guid False postURL
+                                                                                  ]
     where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
-          postURL = "http://carlo-hamalainen.net/blog/" ++ (show year) ++ "/" ++ (show month) ++ "/" ++ (show day) ++ "/" ++ (DT.unpack mashedTitle)
+          postURL = url ++ (show year) ++ "/" ++ (show month) ++ "/" ++ (show day) ++ "/" ++ (DT.unpack mashedTitle)
           postURI = fromJust $ parseURI postURL
           commentURL = postURL ++ "#comments"
           commentURI = fromJust $ parseURI commentURL
 
 getFeedR :: Handler RepXml
 getFeedR = do
+    e <- getExtra
+
     entryEntities <- runDB $ selectList [] []
 
-    let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
-        items   = map entryToItem entries :: [[RSS.ItemElem]]
+    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
-        channel = [ RSS.Language "en-US" -- FIXME change to en-au? utf8?
-                  , RSS.Copyright "Carlo Hamalainen"
-                  , RSS.WebMaster "carlo@carlo-hamalainen.net"
+    let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
+        author  = DT.unpack $ extraRssWebMaster e
+        items   = map (entryToItem url author) entries :: [[RSS.ItemElem]]
+
+        channel = [ RSS.Language  $ DT.unpack $ extraRssLanguage e
+                  , RSS.Copyright $ DT.unpack $ extraRssCopyright e
+                  , RSS.WebMaster $ DT.unpack $ extraRssWebMaster e
                   , RSS.LastBuildDate $ latestPost entries
                   , RSS.Generator "rss-3000"
                   ]
 
-    -- FIXME pull hard-coded name/url from config.
-    return $ RepXml $ toContent $ (RSS.showXML . RSS.rssToXML) (RSS.RSS "Carlo Hamalainen" (fromJust $ parseURI "http://carlo-hamalainen.net/blog") "Carlo Hamalainen" channel items)
+    m <- getYesod
+    let blogTitle       = DT.unpack $ renderMessage m [] MsgBlogTitle
+        blogDescription = DT.unpack $ renderMessage m [] MsgBlogDescription
+
+    return $ RepXml $ toContent $ (RSS.showXML . RSS.rssToXML) (RSS.RSS blogTitle (fromJust $ parseURI url) blogDescription channel items)
 
 getHomeR :: Handler RepHtml
 getHomeR = do
@@ -168,8 +184,8 @@ postEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 postEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
-    let entryId = entityToEntryId (fromJust e) -- FIXME handle the Nothing case here
-        title   = entityToTitle (fromJust e) -- FIXME handle the Nothing case?
+    let entryId = entityKey (fromJust e) -- FIXME handle the Nothing case here
+        title   = (entryTitle . entityVal) (fromJust e) -- FIXME handle the Nothing case?
 
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
@@ -198,7 +214,3 @@ postEntryLongR year month day mashedTitle = do
     <div>
         <input type=submit value=_{MsgAddCommentButton}>
 |]
-
-
-    where entityToEntryId (Entity eid (Entry {})) = eid -- FIXME should not have to roll our own for these?
-          entityToTitle (Entity _ (Entry title _ _ _ _ _ _)) = title -- FIXME use standard function to rip out title, templated something?
