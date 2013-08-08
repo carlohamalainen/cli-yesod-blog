@@ -94,7 +94,8 @@ getFeedR = do
 
     entryEntities <- runDB $ selectList [] []
 
-    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
+    root <- DT.unpack <$> fmap (appRoot . settings) getYesod
+    let url = root ++ "/blog"
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
         author  = DT.unpack $ extraRssWebMaster e
@@ -164,7 +165,7 @@ getEntryLongR year month day mashedTitle = do
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
-<p align="right"><h1><a href=#{url}>_{MsgBlogTitle}</a>
+<p align="right"><h1><a href=#{url ++ "/blog"}>_{MsgBlogTitle}</a>
 <hr>
 <h1>#{title'}
 <article>#{content'}
