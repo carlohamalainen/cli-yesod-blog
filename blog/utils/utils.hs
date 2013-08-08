@@ -33,6 +33,7 @@ import qualified Data.Text.Encoding.Error as DTEE
 import qualified Text.Blaze as TB
 import qualified Text.Blaze.Html as TBH
 import Text.Blaze.Html.Renderer.Utf8
+import qualified Text.Blaze.Html.Renderer.Text as TBHRT
 
 import Database.Persist.GenericSql
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -46,6 +47,7 @@ import Network.URI
 import Data.Time.Calendar
 import Data.Time.Clock
 import Safe
+
 
 sanitiseTitle :: Text -> Text
 sanitiseTitle = wpHack . DT.pack . nukeNonAlNum . map hack . map dotToDash . DT.unpack . dashes . lowerCase
@@ -170,6 +172,9 @@ listBlogPosts = do
 
     forM_ posts printBlogPostEntity
 
+instance Show Comment where
+    show (Comment entryId commentDate commentAuthor commentAuthorEmail commentAuthorUrl commentText visible) = show commentDate ++ " " ++ show commentAuthor -- FIXME show/render the text/html too
+
 dumpBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
     forM_ posts print
@@ -247,7 +252,7 @@ addCommentFromFile entryId commentFile = do
         commentAuthorEmail  = castTextToMaybe $ DT.pack $ x !! 1
         commentAuthorUrl    = castTextToMaybe $ DT.pack $ x !! 2
         commentDate         = read (x !! 3) :: UTCTime
-        commentText         = Textarea $ DT.pack $ unlines $ drop 4 x
+        commentText         = (toHtml . TB.preEscapedToMarkup) $ DT.pack $ unlines $ drop 4 x
 
         visible = False
 
@@ -284,16 +289,20 @@ editComment cid = do
     comment <- myRunDB $ get commentId
 
     case (comment :: Maybe Comment) of (Just c) -> do let name1 = DT.unpack $ commentName c
-                                                          text1 = DT.unpack $ unTextarea $ commentText c
-                                                      writeFile "/tmp/blah.html" (name1 ++ "\n" ++ text1) -- FIXME use a temp file
+                                                          url1  = if isNothing (commentUrl c) then "" else DT.unpack $ fromJust $ commentUrl c
+                                                          text1 = DTL.unpack $ TBHRT.renderHtml $ commentText c
+                                                      writeFile "/tmp/blah.html" (name1 ++ "\n" ++ url1 ++ "\n" ++ text1) -- FIXME use a temp file
 
                                                       r <- system "vim /tmp/blah.html"
                                                       x <- readFile "/tmp/blah.html"
 
                                                       let name2 = DT.pack $ head $ lines x
-                                                          text2 = Textarea (DT.pack $ unlines $ drop 1 $ lines x)
+                                                          url2  = DT.pack $ head $ drop 1 $ lines x
+                                                          url2' = if url2 == DT.pack "" then Nothing else Just url2
+                                                          text2 = (toHtml . TB.preEscapedToMarkup) (DT.pack $ unlines $ drop 2 $ lines x)
 
                                                       myRunDB $ update commentId [ CommentName =. name2
+                                                                                 , CommentUrl  =. url2'
                                                                                  , CommentText =. text2
                                                                                  ]
 
@@ -313,7 +322,7 @@ showBlogPost i = do
                                                                                niceName         = DT.unpack name
                                                                                niceEmail        = DT.unpack $ maybeTextToText email
                                                                                niceUrl          = DT.unpack $ maybeTextToText url
-                                                                               niceText         = show $ lines $ DT.unpack $ unTextarea text
+                                                                               niceText         = show $ lines $ DTL.unpack $ TBHRT.renderHtml text
                                                                                niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
                                                                            putStrLn $ "comment: " ++ show i ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
@@ -349,7 +358,7 @@ reportUnmoderatedComments = do
                                  niceName         = DT.unpack name
                                  niceEmail        = DT.unpack $ maybeTextToText email
                                  niceUrl          = DT.unpack $ maybeTextToText url
-                                 niceText         = show $ lines $ DT.unpack $ unTextarea text
+                                 niceText         = show $ lines $ DTL.unpack $ TBHRT.renderHtml text
                                  niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
                              putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceEmail ++ " " ++ niceUrl ++ " " ++ niceText)

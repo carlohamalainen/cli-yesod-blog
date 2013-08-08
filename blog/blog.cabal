@@ -81,6 +81,7 @@ library
                  , safe
                  , network
                  , rss
+                 , blaze-html
 
 executable         blog
     if flag(library-only)

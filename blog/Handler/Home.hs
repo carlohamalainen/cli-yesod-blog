@@ -36,6 +36,8 @@ import Control.Monad
 
 import Yesod.Default.Config
 
+import qualified Text.Blaze.Html.Renderer.Text as TBHRT
+import GHC.Int
 
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
@@ -58,7 +60,7 @@ commentForm entryId = renderDivs $ Comment
     <*> areq textField (fieldSettingsLabel MsgCommentName) Nothing
     <*> aopt emailField (fieldSettingsLabel MsgCommentEmail) Nothing
     <*> aopt urlField (fieldSettingsLabel MsgCommentUrl) Nothing
-    <*> areq textareaField (fieldSettingsLabel MsgCommentText) Nothing
+    <*> areq htmlField (fieldSettingsLabel MsgCommentText) Nothing
     <*> pure False <* recaptchaAForm
 
 -- My posts are specified by year/month/day and mashed-title, so
@@ -155,7 +157,7 @@ getEntryLongR year month day mashedTitle = do
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
 
                                                                                                         e <- getExtra
-                                                                                                        let commentsOpen = length comments < (extraMaxNrComments e)
+                                                                                                        let commentsOpen = length comments < extraMaxNrComments e
 
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
@@ -205,8 +207,8 @@ sendEmailNotification comment title = do
     x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
                              (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
                              subjectLine
-                             (DTL.pack $ DT.unpack $ unTextarea text)
-                             (DTL.pack $ DT.unpack $ unTextarea text)
+                             (TBHRT.renderHtml $ text)
+                             (TBHRT.renderHtml $ text)
                              []
 
     liftIO $ renderSendMail x
@@ -249,7 +251,7 @@ postEntryLongR year month day mashedTitle = do
 
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
-        FormSuccess comment -> do if (DT.length $ unTextarea $ commentText comment) < (extraMaxCommentLength extra)
+        FormSuccess comment -> do if (DTL.length $ TBHRT.renderHtml $ commentText comment) < (fromIntegral $ extraMaxCommentLength extra :: Int64)
                                     then successfulCommentPost year month day mashedTitle comment title
                                     else unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectTooLong
 
