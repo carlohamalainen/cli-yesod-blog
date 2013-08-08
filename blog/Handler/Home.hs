@@ -123,6 +123,8 @@ getHomeR = do
     e <- getExtra
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
+    let feedUrl = url ++ "/feed"
+
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
         [whamlet|
@@ -135,6 +137,9 @@ $else
     <ul>
         $forall (title, mashedTitle, year, month, mm, day, dd, content, visible) <- entriesAsTuples
             <li> <a href=@{EntryLongR year month day mashedTitle}>#{year}-#{mm}-#{dd} #{title}</a>
+
+<p> <a href="#{feedUrl}">Posts: RSS</a>
+
 |]
 
     -- This deconstruction to a tuple is a bit clunky, but I can't work out how to put
