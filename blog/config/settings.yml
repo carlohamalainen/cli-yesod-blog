@@ -18,8 +18,8 @@ Production:
   #approot: "http://www.example.com"
   <<: *defaults
   port: 4321
-  # approot: "http://carlo-hamalainen.net"
-  approot: "http://localhost:8080"
+  approot: "http://carlo-hamalainen.net"
+  # approot: "http://localhost:8080"
   rss_web_master: "Carlo Hamalainen"
   rss_language: "en-US"
   rss_copyright: "Carlo Hamalainen"
