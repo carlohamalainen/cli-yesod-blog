@@ -148,6 +148,10 @@ getEntryLongR year month day mashedTitle = do
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
+
+                                                                                                        e <- getExtra
+                                                                                                        let commentsOpen = length comments < (extraMaxNrComments e)
+
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
                                                                                                         defaultLayout $ do
@@ -173,14 +177,17 @@ getEntryLongR year month day mashedTitle = do
                 <h3>#{name} #{fromMaybe "" url}
                 <h4>#{show posted}
                 <p>#{toHtml text}
-        <section>
-            <h1>_{MsgAddCommentHeading}
 
-            <form method=post enctype=#{enctype}>
-                ^{commentWidget}
-                <div>
-                    <input type=submit value=_{MsgAddCommentButton}>
+        $if commentsOpen
+            <section>
+                <h1>_{MsgAddCommentHeading}
 
+                <form method=post enctype=#{enctype}>
+                    ^{commentWidget}
+                    <div>
+                        <input type=submit value=_{MsgAddCommentButton}>
+        $else
+            <p> Comments are closed.
 |]
               _                                                                            -> notFound
 

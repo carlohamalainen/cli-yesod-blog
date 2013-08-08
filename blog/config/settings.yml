@@ -29,3 +29,5 @@ Production:
 
   email_notification_to_name:     "blog"
   email_notification_to_address:  "carlo@carlo-hamalainen.net"
+
+  max_nr_comments: 100
