@@ -207,6 +207,33 @@ sendEmailNotification comment title = do
 
     liftIO $ renderSendMail x
 
+successfulCommentPost year month day mashedTitle comment title = do
+    _ <- runDB $ insert comment
+    sendEmailNotification comment title
+
+
+    defaultLayout $ do
+        setTitleI MsgCommentAdded
+        [whamlet|
+<p> Comment has been added to the moderation queue:
+
+<pre>
+    <p> Name: #{commentName comment}
+    <p> Comment: #{commentText comment}
+
+<p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
+|]
+
+unsuccessfulCommentPost commentWidget enctype = do
+    defaultLayout $ do
+        setTitleI MsgPleaseCorrectComment
+        [whamlet|
+<form method=post enctype=#{enctype}>
+    ^{commentWidget}
+    <div>
+        <input type=submit value=_{MsgAddCommentButton}>
+|]
+
 postEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 postEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
@@ -216,28 +243,7 @@ postEntryLongR year month day mashedTitle = do
 
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
-        FormSuccess comment -> do
-            _ <- runDB $ insert comment
-            sendEmailNotification comment title
+        FormSuccess comment -> successfulCommentPost year month day mashedTitle comment title
 
+        _ -> unsuccessfulCommentPost commentWidget enctype
 
-            defaultLayout $ do
-                setTitleI MsgCommentAdded
-                [whamlet|
-<p> Comment has been added to the moderation queue:
-
-<pre>
-    <p> Name: #{commentName comment}
-    <p> Comment: #{commentText comment}
-
-<p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
-
-|]
-        _ -> defaultLayout $ do
-            setTitleI MsgPleaseCorrectComment
-            [whamlet|
-<form method=post enctype=#{enctype}>
-    ^{commentWidget}
-    <div>
-        <input type=submit value=_{MsgAddCommentButton}>
-|]
