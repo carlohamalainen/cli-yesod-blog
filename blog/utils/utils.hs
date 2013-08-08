@@ -204,7 +204,7 @@ makeFakeBlogPosts = do
 
 addBlogPostFromEditor title = do
     r <- system "vim /tmp/blah.html"
-    content <- liftM toHtml $ readFile "/tmp/blah.html"
+    content <- liftM toHtml $ liftM TB.preEscapedToMarkup $ readFile "/tmp/blah.html"
 
     (year, month, day) <- liftM getYMD getCurrentTime
 
