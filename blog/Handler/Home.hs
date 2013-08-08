@@ -120,11 +120,14 @@ getHomeR = do
 
     let entriesAsTuples = map deconstructEntryEntity entries
 
+    e <- getExtra
+    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
+
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
         [whamlet|
 
-<h1><a href="http://carlo-hamalainen.net/blog">Carlo Hamalainen</a>
+<h1><a href=#{url}>_{MsgBlogTitle}</a>
 <hr>
 $if null entries
     <p>_{MsgNoEntries}
@@ -142,13 +145,15 @@ getEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 getEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
+    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
+
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
-<p align="right"><h1><a href="http://carlo-hamalainen.net/blog">Carlo Hamalainen</a>
+<p align="right"><h1><a href=#{url}>_{MsgBlogTitle}</a>
 <hr>
 <h1>#{title'}
 <article>#{content'}
