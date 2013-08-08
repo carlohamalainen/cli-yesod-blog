@@ -78,6 +78,7 @@ data Extra = Extra
     , extraEmailNotificationToAddress   :: Text
 
     , extraMaxNrComments :: Int
+    , extraMaxCommentLength :: Int
 
     } deriving Show
 
@@ -93,3 +94,4 @@ parseExtra _ o = Extra
     <*> o .:  "email_notification_to_name"
     <*> o .:  "email_notification_to_address"
     <*> o .:  "max_nr_comments"
+    <*> o .:  "max_comment_length"

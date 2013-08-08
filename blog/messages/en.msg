@@ -11,4 +11,5 @@ CommentText: Comment
 AddCommentHeading: Add your comment
 AddCommentButton: Submit
 PleaseCorrectComment: Please correct your comment.
+PleaseCorrectTooLong: Please correct your comment (too long).
 CommentAdded: Your comment has been added to the moderation queue.

@@ -224,9 +224,9 @@ successfulCommentPost year month day mashedTitle comment title = do
 <p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
 |]
 
-unsuccessfulCommentPost commentWidget enctype = do
+unsuccessfulCommentPost commentWidget enctype formTitle = do
     defaultLayout $ do
-        setTitleI MsgPleaseCorrectComment
+        setTitleI formTitle
         [whamlet|
 <form method=post enctype=#{enctype}>
     ^{commentWidget}
@@ -241,9 +241,13 @@ postEntryLongR year month day mashedTitle = do
     let entryId = entityKey (fromJust e) -- FIXME handle the Nothing case here
         title   = (entryTitle . entityVal) (fromJust e) -- FIXME handle the Nothing case?
 
+    extra <- getExtra
+
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
-        FormSuccess comment -> successfulCommentPost year month day mashedTitle comment title
+        FormSuccess comment -> do if (DT.length $ unTextarea $ commentText comment) < (extraMaxCommentLength extra)
+                                    then successfulCommentPost year month day mashedTitle comment title
+                                    else unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectTooLong
 
-        _ -> unsuccessfulCommentPost commentWidget enctype
+        _ -> unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectComment
 
