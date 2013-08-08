@@ -197,10 +197,18 @@ postEntryLongR year month day mashedTitle = do
         FormSuccess comment -> do
             _ <- runDB $ insert comment -- FIXME check length of comment? Rate limit comments by IP???
 
+            extra <- getExtra
+
             let Comment _ _ name _ _ text _ = comment
                 subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
 
-            x <- liftIO $ simpleMail (Address (Just "blog") "carlo@carlo-hamalainen.net") (Address (Just "blog") "carlo@carlo-hamalainen.net") subjectLine (DTL.pack $ DT.unpack $ unTextarea text) (DTL.pack $ DT.unpack $ unTextarea text) []
+            x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
+                                     (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
+                                     subjectLine
+                                     (DTL.pack $ DT.unpack $ unTextarea text)
+                                     (DTL.pack $ DT.unpack $ unTextarea text)
+                                     []
+
             liftIO $ renderSendMail x
 
             defaultLayout $ do

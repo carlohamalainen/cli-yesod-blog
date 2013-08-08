@@ -71,6 +71,12 @@ data Extra = Extra
     , extraRssWebMaster     :: Text
     , extraRssLanguage      :: Text
     , extraRssCopyright     :: Text
+
+    , extraEmailNotificationFromName    :: Text
+    , extraEmailNotificationFromAddress :: Text
+    , extraEmailNotificationToName      :: Text
+    , extraEmailNotificationToAddress   :: Text
+
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -80,3 +86,7 @@ parseExtra _ o = Extra
     <*> o .:  "rss_web_master"
     <*> o .:  "rss_language"
     <*> o .:  "rss_copyright"
+    <*> o .:  "email_notification_from_name"
+    <*> o .:  "email_notification_from_address"
+    <*> o .:  "email_notification_to_name"
+    <*> o .:  "email_notification_to_address"
