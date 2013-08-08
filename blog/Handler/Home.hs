@@ -192,6 +192,21 @@ getEntryLongR year month day mashedTitle = do
               _                                                                            -> notFound
 
 
+sendEmailNotification comment title = do
+    extra <- getExtra
+
+    let Comment _ _ name _ _ text _ = comment
+        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
+
+    x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
+                             (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
+                             subjectLine
+                             (DTL.pack $ DT.unpack $ unTextarea text)
+                             (DTL.pack $ DT.unpack $ unTextarea text)
+                             []
+
+    liftIO $ renderSendMail x
+
 postEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 postEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
@@ -202,21 +217,9 @@ postEntryLongR year month day mashedTitle = do
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
         FormSuccess comment -> do
-            _ <- runDB $ insert comment -- FIXME check length of comment? Rate limit comments by IP???
+            _ <- runDB $ insert comment
+            sendEmailNotification comment title
 
-            extra <- getExtra
-
-            let Comment _ _ name _ _ text _ = comment
-                subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
-
-            x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
-                                     (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
-                                     subjectLine
-                                     (DTL.pack $ DT.unpack $ unTextarea text)
-                                     (DTL.pack $ DT.unpack $ unTextarea text)
-                                     []
-
-            liftIO $ renderSendMail x
 
             defaultLayout $ do
                 setTitleI MsgCommentAdded
@@ -224,8 +227,8 @@ postEntryLongR year month day mashedTitle = do
 <p> Comment has been added to the moderation queue:
 
 <pre>
-    <p> Name: #{name}
-    <p> Comment: #{text}
+    <p> Name: #{commentName comment}
+    <p> Comment: #{commentText comment}
 
 <p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
 
