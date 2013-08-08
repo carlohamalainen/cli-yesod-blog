@@ -206,7 +206,11 @@ postEntryLongR year month day mashedTitle = do
             defaultLayout $ do
                 setTitleI MsgCommentAdded
                 [whamlet|
-<p> Comment has been added to the moderation queue.
+<p> Comment has been added to the moderation queue:
+
+<pre>
+    <p> Name: #{name}
+    <p> Comment: #{text}
 
 <p> Return to the post: <a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
 
