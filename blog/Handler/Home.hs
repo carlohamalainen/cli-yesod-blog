@@ -174,7 +174,6 @@ getEntryLongR year month day mashedTitle = do
                     <h3>#{name}
                 $else
                     <h3><a href=#{fromJust url}>#{name}</a>
-                <h3>#{name} #{fromMaybe "" url}
                 <h4>#{show posted}
                 <p>#{toHtml text}
 
