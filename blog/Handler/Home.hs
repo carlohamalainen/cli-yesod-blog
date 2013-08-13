@@ -39,6 +39,8 @@ import Yesod.Default.Config
 import qualified Text.Blaze.Html.Renderer.Text as TBHRT
 import GHC.Int
 
+import Network.Wai
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -199,11 +201,11 @@ getEntryLongR year month day mashedTitle = do
               _                                                                            -> notFound
 
 
-sendEmailNotification comment title = do
+sendEmailNotification comment title ip = do
     extra <- getExtra
 
     let Comment _ _ name _ _ text _ = comment
-        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] on post [" ++ (DT.unpack title) ++ "]"
+        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (DT.unpack title) ++ "]"
 
     x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
                              (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
@@ -214,9 +216,9 @@ sendEmailNotification comment title = do
 
     liftIO $ renderSendMail x
 
-successfulCommentPost year month day mashedTitle comment title = do
+successfulCommentPost year month day mashedTitle comment title ip = do
     _ <- runDB $ insert comment
-    sendEmailNotification comment title
+    sendEmailNotification comment title ip
 
 
     defaultLayout $ do
@@ -253,7 +255,8 @@ postEntryLongR year month day mashedTitle = do
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
         FormSuccess comment -> do if (DTL.length $ TBHRT.renderHtml $ commentText comment) < (fromIntegral $ extraMaxCommentLength extra :: Int64)
-                                    then successfulCommentPost year month day mashedTitle comment title
+                                    then do ip <- fmap (show . remoteHost . reqWaiRequest) getRequest
+                                            successfulCommentPost year month day mashedTitle comment title ip
                                     else unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectTooLong
 
         _ -> unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectComment

@@ -82,6 +82,7 @@ library
                  , network
                  , rss
                  , blaze-html
+                 , wai
 
 executable         blog
     if flag(library-only)
