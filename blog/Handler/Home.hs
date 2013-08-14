@@ -97,7 +97,7 @@ getFeedR = do
     entryEntities <- runDB $ selectList [] []
 
     root <- DT.unpack <$> fmap (appRoot . settings) getYesod
-    let url = root ++ "/blog"
+    let url = root ++ "/blog/"
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
         author  = DT.unpack $ extraRssWebMaster e
