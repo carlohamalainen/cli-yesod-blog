@@ -41,6 +41,9 @@ import GHC.Int
 
 import Network.Wai
 
+import System.FilePath.Posix
+cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -85,7 +88,7 @@ entryToItem url author (Entry title mashedTitle year month day content visible) 
                                                                                   , RSS.Guid False postURL
                                                                                   ]
     where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
-          postURL = url ++ (show year) ++ "/" ++ (show month) ++ "/" ++ (show day) ++ "/" ++ (DT.unpack mashedTitle)
+          postURL = url `cu` (show year) `cu` (show month) `cu` (show day) `cu` (DT.unpack mashedTitle)
           postURI = fromJust $ parseURI postURL
           commentURL = postURL ++ "#comments"
           commentURI = fromJust $ parseURI commentURL
@@ -97,7 +100,7 @@ getFeedR = do
     entryEntities <- runDB $ selectList [] []
 
     root <- DT.unpack <$> fmap (appRoot . settings) getYesod
-    let url = root ++ "/blog/"
+    let url = root `cu` "blog"
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
         author  = DT.unpack $ extraRssWebMaster e
@@ -128,7 +131,7 @@ getHomeR = do
     e <- getExtra
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
-    let feedUrl = url ++ "/feed"
+    let feedUrl = url `cu` "feed"
 
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
@@ -167,7 +170,7 @@ getEntryLongR year month day mashedTitle = do
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
-<p align="right"><h1><a href=#{url ++ "/blog"}>_{MsgBlogTitle}</a>
+<p align="right"><h1><a href=#{cu url "blog"}>_{MsgBlogTitle}</a>
 <hr>
 <h1>#{title'}
 <article>#{content'}

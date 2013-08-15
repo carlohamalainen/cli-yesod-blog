@@ -83,6 +83,7 @@ library
                  , rss
                  , blaze-html
                  , wai
+                 , filepath
 
 executable         blog
     if flag(library-only)
