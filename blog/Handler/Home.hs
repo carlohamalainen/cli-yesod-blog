@@ -44,6 +44,8 @@ import Network.Wai
 import System.FilePath.Posix
 cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
 
+import Debug.Trace
+
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
     deriving Show
@@ -89,6 +91,7 @@ entryToItem url author (Entry title mashedTitle year month day content visible) 
                                                                                   ]
     where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
           postURL = url `cu` (show year) `cu` (show month) `cu` (show day) `cu` (DT.unpack mashedTitle)
+          -- postURI = trace ("would have used: " ++ (show postURL)) $ fromJust $ parseURI "http://foo.com" -- $ parseURI postURL
           postURI = fromJust $ parseURI postURL
           commentURL = postURL ++ "#comments"
           commentURI = fromJust $ parseURI commentURL
