@@ -135,7 +135,7 @@ getHomeR = do
     e <- getExtra
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
-    let feedUrl = url `cu` "feed"
+    let feedUrl = url `cu` "blog" `cu` "feed"
 
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
