@@ -42,9 +42,10 @@ import GHC.Int
 import Network.Wai
 
 import System.FilePath.Posix
-cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
 
 import Debug.Trace
+
+cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
 
 ---------------------------------------------------------------------
 data Person = Person { personName :: Text }
