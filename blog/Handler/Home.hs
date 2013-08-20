@@ -89,6 +89,7 @@ entryToItem url author (Entry title mashedTitle year month day content visible) 
                                                                                   , RSS.Comments commentURI
                                                                                   , RSS.PubDate postDateTime
                                                                                   , RSS.Guid False postURL
+                                                                                  -- TODO , RSS.Description content
                                                                                   ]
     where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
           postURL = url `cu` (show year) `cu` (show month) `cu` (show day) `cu` (DT.unpack mashedTitle)
