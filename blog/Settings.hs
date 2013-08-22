@@ -80,6 +80,8 @@ data Extra = Extra
     , extraMaxNrComments :: Int
     , extraMaxCommentLength :: Int
 
+    , extraBaseUrl :: String
+
     } deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
@@ -95,3 +97,4 @@ parseExtra _ o = Extra
     <*> o .:  "email_notification_to_address"
     <*> o .:  "max_nr_comments"
     <*> o .:  "max_comment_length"
+    <*> o .:  "base_url"

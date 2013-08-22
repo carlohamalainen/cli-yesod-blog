@@ -60,6 +60,9 @@ getFormResult f = do
 
 ---------------------------------------------------------------------
 
+baseUrl = do
+    e <- getExtra
+    return $ extraBaseUrl e
 
 commentForm :: EntryId -> Form Comment
 commentForm entryId = renderDivs $ Comment
@@ -104,8 +107,10 @@ getFeedR = do
 
     entryEntities <- runDB $ selectList [] []
 
+    base <- baseUrl
+
     root <- DT.unpack <$> fmap (appRoot . settings) getYesod
-    let url = root `cu` "blog"
+    let url = root `cu` base
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
         author  = DT.unpack $ extraRssWebMaster e
@@ -135,8 +140,9 @@ getHomeR = do
 
     e <- getExtra
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
+    base <- baseUrl
 
-    let feedUrl = url `cu` "blog" `cu` "feed"
+    let feedUrl = url `cu` base `cu` "feed"
 
     defaultLayout $ do
         setTitleI MsgWelcomeHomepage
@@ -169,13 +175,14 @@ getEntryLongR year month day mashedTitle = do
 
                                                                                                         e <- getExtra
                                                                                                         let commentsOpen = length comments < extraMaxNrComments e
+                                                                                                        base <- baseUrl
 
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
-<p align="right"><h1><a href=#{cu url "blog"}>_{MsgBlogTitle}</a>
+<p align="right"><h1><a href=#{cu url base}>_{MsgBlogTitle}</a>
 <hr>
 <h1>#{title'}
 <article>#{content'}

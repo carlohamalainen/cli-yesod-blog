@@ -2,6 +2,7 @@ Default: &defaults
   host: "*4" # any IPv4 host
   port: 4000
   approot: "http://localhost:4000"
+  base_url: "blog"
   copyright: Copyright Carlo Hamalainen 2007-2013
   #analytics: UA-YOURCODE
 
