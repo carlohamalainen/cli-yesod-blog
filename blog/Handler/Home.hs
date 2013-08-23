@@ -179,12 +179,15 @@ getEntryLongR year month day mashedTitle = do
 
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
+                                                                                                        let dateString = printf "%04d-%02d-%02d" year' month' day' :: String
+
                                                                                                         defaultLayout $ do
                                                                                                             setTitleI title'
                                                                                                             [whamlet|
 <p align="right"><h1><a href=#{cu url base}>_{MsgBlogTitle}</a>
 <hr>
 <h1>#{title'}
+<h3>#{dateString}
 <article>#{content'}
     <section .comments>
         <div id="comments"></div>
