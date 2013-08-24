@@ -6,7 +6,5 @@ Yesod blog with a basic CLI for managing posts.
 TODO
 ====
 
-What is going wrong here?
-
-    $ blog-utils --list | cut -f 1 -d ' ' | xargs -n 1 blog-utils --show > /dev/null
-    blog-utils: user error (Could not find environment: Production)
+* Brief notes on how to set it up.
+* Make a nicer warning if blog-utils is not run from the right directory.
