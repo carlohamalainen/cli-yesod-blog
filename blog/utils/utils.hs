@@ -395,7 +395,37 @@ go ["--set-comment-invisible", i]   = setCommentVisible (read i) False
 go ["--report-unmoderated"] = reportUnmoderatedComments
 
 go _ = do
+    putStrLn ""
+
     putStrLn "Usage:"
+    putStrLn ""
+
+    putStrLn "  --list    List all blog posts."
+    putStrLn "  --dump    Verbose dump of all blog posts including comments."
+    putStrLn ""
+
+    putStrLn "  --show           <eid>  Detailed contents of blog post with numeric ID <eid>."
+    putStrLn "  --edit-post      <eid>  Edit blog post <eid> using vim."
+    putStrLn "  --edit-comment   <cid>  Edit comment with numeric ID <cid>."
+    putStrLn "  --delete-post    <eid>  Delete blog post. DOES NOT ASK FOR CONFIRMATION!"
+    putStrLn "  --delete-comment <cid>  Delete comment. DOES NOT ASK FOR CONFIRMATION!"
+    putStrLn ""
+
+    putStrLn "  --add <title>     Add a new blog post with the given title."
+    putStrLn ""
+    putStrLn "  --add-from-stdin <title> <year> <month> <day>  Add a blog post from stdin."
+    putStrLn "  --add-from-file  <filename>                    Add a blog post from a file."
+    putStrLn ""
+
+    putStrLn "  --set-post-visible   <eid>     Set a post to be visible."
+    putStrLn "  --set-post-invisible <eid>     Set a post to be invisible."
+    putStrLn ""
+
+    putStrLn "  --set-comment-visible   <cid>  Set a comment to be visible."
+    putStrLn "  --set-comment-invisible <cid>  Set a comment to be invisible."
+    putStrLn ""
+
+    putStrLn "  --report-unmoderated      Report all unmoderated (invisible) comments."
     putStrLn ""
 
 main :: IO ()
