@@ -222,8 +222,9 @@ getEntryLongR year month day mashedTitle = do
 sendEmailNotification comment title ip = do
     extra <- getExtra
 
-    let Comment _ _ name _ _ text _ = comment
-        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (DT.unpack title) ++ "]"
+    let Comment _ _ name email _ text _ = comment
+        niceEmail = maybe "<no email supplied>" id (fmap DT.unpack email)
+        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] with email [" ++ niceEmail ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (DT.unpack title) ++ "]"
 
     x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
                              (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
