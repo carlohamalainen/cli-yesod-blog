@@ -6,7 +6,7 @@ import Prelude
 import Yesod
 import Data.Text (Text)
 import Database.Persist.Quasi
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (UTCTime)
 import Text.Blaze
 import Text.Blaze.Renderer.Utf8
 import Data.Maybe

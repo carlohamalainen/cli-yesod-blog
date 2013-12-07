@@ -45,6 +45,7 @@ import System.FilePath.Posix
 
 import Debug.Trace
 
+cu :: FilePath -> FilePath -> FilePath
 cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
 
 ---------------------------------------------------------------------
