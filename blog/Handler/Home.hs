@@ -172,7 +172,7 @@ getEntryLongR year month day mashedTitle = do
 
     url <- DT.unpack <$> fmap (appRoot . settings) getYesod
 
-    case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' visible'))) -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
+    case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' True)))     -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
 
                                                                                                         e <- getExtra
                                                                                                         let commentsOpen = length comments < extraMaxNrComments e
