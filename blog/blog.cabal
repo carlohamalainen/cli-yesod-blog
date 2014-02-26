@@ -57,9 +57,9 @@ library
                  , persistent-template           >= 1.1.1      && < 1.2
                  , template-haskell
                  , hamlet                        >= 1.1        && < 1.2
-                 , shakespeare-css               >= 1.0        && < 1.1
-                 , shakespeare-js                >= 1.0.2      && < 1.2
-                 , shakespeare-text              >= 1.0        && < 1.1
+                 , shakespeare-css               >= 1.0.5.1    && <= 1.0.5.1
+                 , shakespeare-js                >= 1.1.4.1    && <= 1.1.4.1
+                 , shakespeare-text              >= 1.0.0.10   && <= 1.0.0.10
                  , hjsmin                        >= 0.1.4.1  && <= 0.1.4.1
                  , monad-control                 >= 0.3        && < 0.4
                  , wai-extra                     >= 1.3.4.2     && <= 1.3.4.2
@@ -90,6 +90,7 @@ library
                  , unix-time                >= 0.1.9    && <= 0.1.9
                  , hjsmin                   >= 0.1.4.1  && <= 0.1.4.1
                  , language-javascript      >= 0.5.7   &&  <=   0.5.7
+                 , yesod-persistent         >= 1.1.0.1 && <= 1.1.0.1
 
 executable         blog
     if flag(library-only)
