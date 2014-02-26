@@ -49,7 +49,7 @@ import Data.Time.Clock
 import Safe
 
 
-sanitiseTitle :: Text -> Text
+sanitiseTitle :: DT.Text -> DT.Text
 sanitiseTitle = wpHack . DT.pack . nukeNonAlNum . map hack . map dotToDash . DT.unpack . dashes . lowerCase
     where dashes        = DT.intercalate (DT.pack "-") . DT.words
           lowerCase     = DT.toLower
