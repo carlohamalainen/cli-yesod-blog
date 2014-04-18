@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Using the template from http://fahdshariff.blogspot.se/2011/04/writing-your-own-bash-completion.html
+
+_blogutils()
+{
+    local cur=${COMP_WORDS[${COMP_CWORD}]}
+    COMPREPLY=( $(compgen -W "--list --dump --show --edit-post --edit-comment --delete-post --delete-comment --add --set-post-visible --set-post-invisible --set-comment-visible --set-comment-invisible --report-unmoderated" -- $cur) )
+    # COMPREPLY=`compgen -W "alpha beta bar baz" -- $cur`
+}
+complete -F _blogutils blog-utils
+complete -F _blogutils geckobobblog-utils
+
+
+
