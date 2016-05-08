@@ -1,24 +1,30 @@
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Main where
+
 -- imports copied from app/main.hs
-import Prelude              (IO, print, head, tail, readFile, writeFile)
+import Prelude              (IO, read, (!!), tail)
 import Yesod.Default.Main   (defaultMain)
-import Application          (makeApplication)
+-- import Application          (makeApplication)
+
+import qualified Prelude as P
 
 -- my imports
 import Import
 import Yesod.Default.Config
-import Database.Persist.Store
+import Database.Persist.Sqlite
 import Settings
 import Data.Time (UTCTime, getCurrentTime, toGregorian, utctDay)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Trans.Resource (runResourceT)
-import Control.Monad (forM_, liftM)
-import Database.Persist.GenericSql.Raw (SqlBackend)
+-- import Control.Monad (forM_, liftM)
+import Database.Persist.Sql (SqlBackend)
 import System.Process
 import Data.Maybe
 import Data.Char
-import System.Environment ( getArgs )
 import System.IO (openFile, getContents, IOMode(ReadMode))
-import System.FilePath
+import qualified System.FilePath as FP
 import System.Directory
 import qualified Data.List as DL
 
@@ -35,7 +41,7 @@ import qualified Text.Blaze.Html as TBH
 import Text.Blaze.Html.Renderer.Utf8
 import qualified Text.Blaze.Html.Renderer.Text as TBHRT
 
-import Database.Persist.GenericSql
+import Database.Persist.Sql
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Control (MonadBaseControl (..))
 import Control.Monad.Trans.Resource (runResourceT, ResourceT)
@@ -111,17 +117,18 @@ MonadLogger:
 
 -}
 
-
+myRunDB :: SqlPersistT (ResourceT (NoLoggingT IO)) b -> IO b
 myRunDB f = do
-    conf <- Yesod.Default.Config.loadConfig $ (configSettings Production) { csParseExtra = parseExtra }
+    conf <- Yesod.Default.Config.loadConfig $ (configSettings Development)
 
     dbconf <- withYamlEnvironment "config/sqlite.yml" (appEnv conf)
-              Database.Persist.Store.loadConfig >>=
-              Database.Persist.Store.applyEnv
-    p <- Database.Persist.Store.createPoolConfig (dbconf :: Settings.PersistConfig)
+              Database.Persist.Sql.loadConfig >>=
+              Database.Persist.Sql.applyEnv
+    p <- Database.Persist.Sql.createPoolConfig (dbconf :: SqliteConf)
 
-    runNoLoggingT $ runResourceT $ Database.Persist.Store.runPool dbconf f p
+    runNoLoggingT $ runResourceT $ runSqlPool f p
 
+{-
 
 -- TODO Check the code here:
 -- https://github.com/yesodweb/yesod/wiki/Using-Database.Persist.runPool-without-Foundation
@@ -130,11 +137,12 @@ myRunDB f = do
 
 -- also http://www.yesodweb.com/blog/2011/12/resourcet
 
-data WorkerConf = WorkerConf { getConfig :: Settings.PersistConfig
-                             , getPool   :: Database.Persist.GenericSql.ConnectionPool
-                             }
+data WorkerConf = WorkerConf
+    { getConfig :: SqliteConf
+    , getPool   :: Database.Persist.Sql.ConnectionPool
+    }
 
-type WorkerM = ReaderT WorkerConf (ResourceT (LoggingT IO))
+type WorkerM = ReaderT WorkerConf (ResourceT (LoggingT IO)) -- FIXME Unused?
 
 blah = do
     conf <- Yesod.Default.Config.loadConfig $ (configSettings (confName "Development")) { csParseExtra = parseExtra }
@@ -153,20 +161,35 @@ blah = do
           confName "Production"  = Production
           confName x             = error $ "unknown configuration name: " ++ x
 
+
+-}
+
+
+
+-- http://stackoverflow.com/questions/19861914/yesod-how-to-show-the-pure-value-of-a-persistint64-key
+-- unKey has gone away, so use toPathPiece?
+-- unKey' :: PathPiece (Key a) => Key a -> Text
+-- unKey' = toPathPiece
+
+-- Actually, there is now fromSqlKey and toSqlKey so just use them.
+unKey' :: ToBackendKey SqlBackend record => Key record -> Text
+unKey' = DT.pack . show . fromSqlKey
+
+printBlogPost :: Key Entry -> Entry -> IO ()
 printBlogPost eid (Entry title mashedTitle year month day content visible) = do
-    let niceEntryId = show $ foo $ unKey eid :: String
-        niceURL = DT.unpack $ DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
-        niceTitle = DT.unpack title
+    let niceEntryId = unKey' eid
+        niceURL = DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
+        niceTitle = title
         niceContent = DTE.decodeUtf8With DTEE.lenientDecode $ BS.concat . BSL.toChunks $ renderHtml content -- Html converted to Text
-        niceContent' = take 50 $ DT.unpack $ DT.replace (DT.pack "\n") (DT.pack " ... ") niceContent -- rip out newlines, take first 50 characters
+        niceContent' = take 50 $ DT.replace (DT.pack "\n") (DT.pack " ... ") niceContent -- rip out newlines, take first 50 characters
         niceVisible = if visible then "VISIBLE" else "HIDDEN"
 
     putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent'
 
-    where foo (PersistInt64 i) = i
-
+printBlogPostEntity :: Entity Entry -> IO ()
 printBlogPostEntity (Entity eid entry) = printBlogPost eid entry
 
+listBlogPosts :: IO ()
 listBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
 
@@ -174,6 +197,9 @@ listBlogPosts = do
 
 instance Show Comment where
     show (Comment entryId commentDate commentAuthor commentAuthorEmail commentAuthorUrl commentText visible) = show commentDate ++ " " ++ show commentAuthor -- FIXME show/render the text/html too
+
+instance Show Entry where
+    show (Entry title sanitisedTitle year month day content False) = show title -- FIXME show more fields
 
 dumpBlogPosts = do
     posts <- myRunDB $ selectList [] [] :: IO [Entity Entry]
@@ -191,25 +217,51 @@ deleteAllBlogPosts = do
 
     where entityToEntryId (Entity eid (Entry {})) = eid
 
-
 getYMD :: UTCTime -> (Int, Int, Int)
 getYMD utc = (fromInteger y, m, d)
     where (y, m, d) = toGregorian $ utctDay utc
 
-{-
 makeFakeBlogPosts = do
     (year1, month1, day1) <- liftM getYMD getCurrentTime
-    let e1 = Entry (DT.pack "first post") (sanitiseTitle $ DT.pack "first post") year1 month1 day1 (DT.pack "Hi there!") False
+
+    print (year1, month1, day1)
+    let e1 = Entry (DT.pack "first post") (sanitiseTitle $ DT.pack "first post") year1 month1 day1 (toHtml ("Hi there!" :: String)) False
 
     (year2, month2, day2) <- liftM getYMD getCurrentTime
-    let e2 = Entry (DT.pack "second post") (sanitiseTitle $ DT.pack "second post") year2 month2 day2 (DT.pack "Hi there! Do de dah!") False
+    print (year2, month2, day2)
+    let e2 = Entry (DT.pack "second post") (sanitiseTitle $ DT.pack "second post") year2 month2 day2 (toHtml ("Hi there! Do de dah!" :: String)) False
 
-    forM_ [e1, e2] (myRunDB . insert)
--}
+    forM_ [e1, e2] (void . myRunDB . insert)
+
+    return ()
+
+maybeTextToText (Just t) = t    -- FIXME something like this is surely standard.
+maybeTextToText Nothing  = DT.pack ""
+
+showBlogPost i = do
+    let entryId = toSqlKey i
+    entry    <- myRunDB $ get entryId
+
+    case (entry :: Maybe Entry) of (Just e) -> do let content = show $ renderHtml $ entryContent e
+                                                  printBlogPost entryId e
+
+                                                  comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
+
+                                                  forM_ comments (\c -> do let (Entity cid (Comment _ posted name email url text visible)) = c
+                                                                               niceCommentId    = unKey' cid
+                                                                               niceName         = name
+                                                                               niceEmail        = maybeTextToText email
+                                                                               niceUrl          = maybeTextToText url
+                                                                               niceText         = DT.pack $ show $ lines $ DTL.unpack $ TBHRT.renderHtml text
+                                                                               niceVisible      = if visible then "VISIBLE" else "HIDDEN"
+
+                                                                           putStrLn $ "comment: " ++ (DT.pack $ show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                                   Nothing  -> print "boo"
+    -- where foo (PersistInt64 i) = i
 
 addBlogPostFromEditor title = do
     r <- system "vim /tmp/blah.html"
-    content <- liftM toHtml $ liftM TB.preEscapedToMarkup $ readFile "/tmp/blah.html"
+    content <- liftM toHtml $ liftM TB.preEscapedToMarkup $ P.readFile "/tmp/blah.html"
 
     (year, month, day) <- liftM getYMD getCurrentTime
 
@@ -230,11 +282,11 @@ addBlogPostFromFile fileName = do
 
     -- x <- lines <$> readFile fileName
 
-    let ymd     = head x
+    let ymd     = P.head x
         year    = read $ words ymd !! 0 :: Int
         month   = read $ words ymd !! 1 :: Int
         day     = read $ words ymd !! 2 :: Int
-        title   = DT.pack $ head $ tail x
+        title   = DT.pack $ P.head $ tail x
         content = toHtml $ TB.preEscapedToMarkup $ unlines $ drop 2 x
 
     eid <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
@@ -246,7 +298,7 @@ addBlogPostFromFile fileName = do
     forM_ commentFiles (addCommentFromFile eid)
 
 addCommentFromFile entryId commentFile = do
-    x <- liftM lines (readFile commentFile)
+    x <- liftM lines (P.readFile commentFile)
 
     let commentAuthor       = DT.pack $ x !! 0
         commentAuthorEmail  = castTextToMaybe $ DT.pack $ x !! 1
@@ -262,29 +314,29 @@ addCommentFromFile entryId commentFile = do
     where castTextToMaybe s = if s == DT.pack "" then Nothing else Just s
 
 getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . keepOurs) directoryContents
-    where directoryContents = getDirectoryContents (takeDirectory fileName) :: IO [FilePath]
-          baseName = dropExtension $ takeFileName fileName  :: FilePath
-          keepOurs = filter (DL.isPrefixOf baseName)        :: [FilePath] -> [FilePath]
-          commentFile = filter (DL.isInfixOf "comment")     :: [FilePath] -> [FilePath]
-          directoryName = takeDirectory fileName
-          addDirectoryPrefix = map (directoryName </>) :: [FilePath] -> [FilePath]
+    where directoryContents = getDirectoryContents (FP.takeDirectory fileName) :: IO [FP.FilePath]
+          baseName = FP.dropExtension $ FP.takeFileName fileName  :: FP.FilePath
+          keepOurs = filter (DL.isPrefixOf baseName)        :: [FP.FilePath] -> [FP.FilePath]
+          commentFile = filter (DL.isInfixOf "comment")     :: [FP.FilePath] -> [FP.FilePath]
+          directoryName = FP.takeDirectory fileName
+          addDirectoryPrefix = map (directoryName FP.</>) :: [FP.FilePath] -> [FP.FilePath]
 
 editBlogPost i = do
-    let entryId = Key $ PersistInt64 (fromIntegral i)
+    let entryId = toSqlKey i
     entry <- myRunDB $ get entryId
 
     case (entry :: Maybe Entry) of (Just e) -> do let content1 = renderHtml $ entryContent e
                                                   BSL.writeFile "/tmp/blah.html" content1
 
                                                   r <- system "vim /tmp/blah.html"
-                                                  content2 <- liftM (toHtml . TB.preEscapedToMarkup) $ readFile "/tmp/blah.html"
+                                                  content2 <- liftM (toHtml . TB.preEscapedToMarkup) $ P.readFile "/tmp/blah.html"
                                                   myRunDB $ update entryId [EntryContent =. content2]
                                    Nothing  -> print "boo"
 
 -- FIXME add url/email to the edit thing, in case have to tidy
 -- up dodgy/spammy comment.
 editComment cid = do
-    let commentId = Key $ PersistInt64 (fromIntegral cid)
+    let commentId = toSqlKey cid
 
     comment <- myRunDB $ get commentId
 
@@ -296,8 +348,8 @@ editComment cid = do
                                                       r <- system "vim /tmp/blah.html"
                                                       x <- readFile "/tmp/blah.html"
 
-                                                      let name2 = DT.pack $ head $ lines x
-                                                          url2  = DT.pack $ head $ drop 1 $ lines x
+                                                      let name2 = DT.pack $ P.head $ lines x
+                                                          url2  = DT.pack $ P.head $ P.drop 1 $ lines x
                                                           url2' = if url2 == DT.pack "" then Nothing else Just url2
                                                           text2 = (toHtml . TB.preEscapedToMarkup) (DT.pack $ unlines $ drop 2 $ lines x)
 
@@ -308,29 +360,8 @@ editComment cid = do
 
                                        Nothing  -> print "boo"
 
-showBlogPost i = do
-    let entryId = Key $ PersistInt64 (fromIntegral i)
-    entry    <- myRunDB $ get entryId
-
-    case (entry :: Maybe Entry) of (Just e) -> do let content = show $ renderHtml $ entryContent e
-                                                  printBlogPost entryId e
-
-                                                  comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
-
-                                                  forM_ comments (\c -> do let (Entity cid (Comment _ posted name email url text visible)) = c
-                                                                               niceCommentId    = show $ foo $ unKey cid :: String
-                                                                               niceName         = DT.unpack name
-                                                                               niceEmail        = DT.unpack $ maybeTextToText email
-                                                                               niceUrl          = DT.unpack $ maybeTextToText url
-                                                                               niceText         = show $ lines $ DTL.unpack $ TBHRT.renderHtml text
-                                                                               niceVisible      = if visible then "VISIBLE" else "HIDDEN"
-
-                                                                           putStrLn $ "comment: " ++ show i ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
-                                   Nothing  -> print "boo"
-    where foo (PersistInt64 i) = i
-
 deleteBlogPost i = do
-    let entryId = Key $ PersistInt64 (fromIntegral i) :: KeyBackend Database.Persist.GenericSql.Raw.SqlBackend Entry
+    let entryId = toSqlKey i :: Key Entry
     myRunDB $ delete entryId
 
     comments <- myRunDB $ selectList [CommentEntry ==. entryId] [] :: IO [Entity Comment]
@@ -340,33 +371,28 @@ deleteBlogPost i = do
     where entityToCommentId (Entity cid (Comment {})) = cid
 
 deleteComment i = do
-    let commentId = Key $ PersistInt64 (fromIntegral i) :: KeyBackend Database.Persist.GenericSql.Raw.SqlBackend Comment
+    let commentId = toSqlKey i :: Key Comment
     myRunDB $ delete commentId
 
 setEntryVisible :: Integer -> Bool -> IO ()
-setEntryVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [EntryVisible =. visible]
+setEntryVisible i visible = myRunDB $ update (toSqlKey $ fromIntegral i) [EntryVisible =. visible]
 
 setCommentVisible :: Integer -> Bool -> IO ()
-setCommentVisible i visible = myRunDB $ update (Key $ PersistInt64 (fromIntegral i)) [CommentVisible =. visible]
+setCommentVisible i visible = myRunDB $ update (toSqlKey $ fromIntegral i) [CommentVisible =. visible]
 
 reportUnmoderatedComments = do
     comments <- myRunDB $ selectList [CommentVisible ==. False] [Desc CommentPosted]
 
     forM_ comments (\c -> do let (Entity cid (Comment eid posted name email url text visible)) = c
-                                 niceEntryId      = show $ foo $ unKey eid :: String
-                                 niceCommentId    = show $ foo $ unKey cid :: String
-                                 niceName         = DT.unpack name
-                                 niceEmail        = DT.unpack $ maybeTextToText email
-                                 niceUrl          = DT.unpack $ maybeTextToText url
-                                 niceText         = show $ lines $ DTL.unpack $ TBHRT.renderHtml text
+                                 niceEntryId      = unKey' eid
+                                 niceCommentId    = unKey' cid
+                                 niceName         = name
+                                 niceEmail        = maybeTextToText email
+                                 niceUrl          = maybeTextToText url
+                                 niceText         = DT.pack $ show $ lines $ DTL.unpack $ TBHRT.renderHtml text
                                  niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
                              putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceEmail ++ " " ++ niceUrl ++ " " ++ niceText)
-
-    where foo (PersistInt64 i) = i
-
-maybeTextToText (Just t) = t    -- FIXME something like this is surely standard.
-maybeTextToText Nothing  = DT.pack ""
 
 go :: [String] -> IO ()
 go ["--list"] = listBlogPosts
@@ -429,4 +455,4 @@ go _ = do
     putStrLn ""
 
 main :: IO ()
-main = getArgs >>= go
+main = getArgs >>= (return . map DT.unpack) >>= go
