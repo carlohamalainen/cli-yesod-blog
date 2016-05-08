@@ -159,5 +159,5 @@ unsafeHandler = Unsafe.fakeHandlerGetLogger appLogger
 
 
 instance YesodReCAPTCHA App where
-    recaptchaPublicKey  = return $ DT.pack RK.recaptchaPublicKey
-    recaptchaPrivateKey = return $ DT.pack RK.recaptchaPrivateKey
+    recaptchaPublicKey  = return RK.recaptchaPublicKey  :: HandlerT App IO Text
+    recaptchaPrivateKey = return RK.recaptchaPrivateKey :: HandlerT App IO Text

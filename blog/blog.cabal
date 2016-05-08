@@ -95,6 +95,7 @@ library
                  , resourcet
                  , http-types
                  , network-info
+                 , string-conversions
 
 
 executable         blog
@@ -139,6 +140,7 @@ executable         blog-utils
                      , resourcet
                      , http-types
                      , network-info
+                     , string-conversions
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
@@ -191,3 +193,4 @@ test-suite test
                  , resourcet
                  , http-types
                  , network-info
+                 , string-conversions

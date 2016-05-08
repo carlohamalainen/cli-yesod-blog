@@ -9,6 +9,7 @@ import qualified System.FilePath.Posix as FP
 import qualified Text.RSS as RSS
 
 import Data.Maybe (fromJust)
+import Data.String.Conversions
 import Text.Printf
 import Yesod.ReCAPTCHA
 
@@ -100,7 +101,7 @@ dateOfPost :: Entry -> UTCTime
 dateOfPost (Entry _ _ year month day _ _) = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
 
 entryToItem :: String -> String -> Entry -> [RSS.ItemElem]
-entryToItem url author (Entry title mashedTitle year month day content visible) = [ RSS.Title $ DT.unpack title
+entryToItem url author (Entry title mashedTitle year month day content visible) = [ RSS.Title $ cs title
                                                                                   , RSS.Link postURI
                                                                                   , RSS.Author author
                                                                                   , RSS.Comments commentURI
@@ -109,7 +110,7 @@ entryToItem url author (Entry title mashedTitle year month day content visible) 
                                                                                   -- TODO , RSS.Description content
                                                                                   ]
     where postDateTime = UTCTime (fromGregorian (fromIntegral year) (fromIntegral month) (fromIntegral day)) midday
-          postURL = url `cu` (show year) `cu` (show month) `cu` (show day) `cu` (DT.unpack mashedTitle)
+          postURL = url `cu` (show year) `cu` (show month) `cu` (show day) `cu` (cs mashedTitle)
           -- postURI = trace ("would have used: " ++ (show postURL)) $ fromJust $ parseURI "http://foo.com" -- $ parseURI postURL
           postURI = fromJust $ parseURI postURL
           commentURL = postURL ++ "#comments"
@@ -119,27 +120,27 @@ getFeedR :: Handler RepXml
 getFeedR = do
     entryEntities <- runDB $ selectList [] []
 
-    base <- DT.unpack <$> baseUrl
+    base <- cs <$> baseUrl
 
     settings <- appSettings <$> getYesod
 
-    let root = DT.unpack $ appRoot settings
+    let root = cs $ appRoot settings
     let url = root `cu` base
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
-        author  = DT.unpack $ appRssWebMaster settings
+        author  = cs $ appRssWebMaster settings
         items   = map (entryToItem url author) entries :: [[RSS.ItemElem]]
 
-        channel = [ RSS.Language  $ DT.unpack $ appRssLanguage      settings
-                  , RSS.Copyright $ DT.unpack $ appRssCopyright     settings
-                  , RSS.WebMaster $ DT.unpack $ appRssWebMaster     settings
+        channel = [ RSS.Language  $ cs $ appRssLanguage      settings
+                  , RSS.Copyright $ cs $ appRssCopyright     settings
+                  , RSS.WebMaster $ cs $ appRssWebMaster     settings
                   , RSS.LastBuildDate $ latestPost entries
                   , RSS.Generator "rss-3000"
                   ]
 
     m <- getYesod
-    let blogTitle       = DT.unpack $ renderMessage m [] MsgBlogTitle
-        blogDescription = DT.unpack $ renderMessage m [] MsgBlogDescription
+    let blogTitle       = cs $ renderMessage m [] MsgBlogTitle
+        blogDescription = cs $ renderMessage m [] MsgBlogDescription
 
     return $ RepXml $ toContent $ (RSS.showXML . RSS.rssToXML) (RSS.RSS blogTitle (fromJust $ parseURI url) blogDescription channel items)
 
@@ -157,9 +158,9 @@ getHomeR = do
     let latestEntries   = take 8 entriesAsTuples
         fmtDateString y m d = printf "%04d-%02d-%02d" y m d :: String
 
-    let url = DT.unpack $ appRoot $ appSettings master
+    let url = cs $ appRoot $ appSettings master
 
-    base <- DT.unpack <$> baseUrl
+    base <- cs <$> baseUrl
 
     let feedUrl = url `cu` base `cu` "feed"
 
@@ -196,13 +197,13 @@ getEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 getEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
-    url <- (DT.unpack . appRoot . appSettings) <$> getYesod
+    url <- (cs . appRoot . appSettings) <$> getYesod
 
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' True)))     -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
 
                                                                                                         maxNrComments <- (appMaxNrComments . appSettings) <$> getYesod
                                                                                                         let commentsOpen = length comments < maxNrComments
-                                                                                                        base <- DT.unpack <$> baseUrl
+                                                                                                        base <- cs <$> baseUrl
 
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
@@ -249,8 +250,8 @@ sendEmailNotification comment title ip = do
     settings <- appSettings <$> getYesod
 
     let Comment _ _ name email _ text _ = comment
-        niceEmail = maybe "<no email supplied>" id (fmap DT.unpack email)
-        subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] with email [" ++ niceEmail ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (DT.unpack title) ++ "]"
+        niceEmail = maybe "<no email supplied>" id (fmap cs email)
+        subjectLine = cs $ "new comment from [" ++ (cs name) ++ "] with email [" ++ niceEmail ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (cs title) ++ "]"
 
     x <- liftIO $ simpleMail (Address (Just $ appEmailNotificationFromName settings) (appEmailNotificationFromAddress settings))
                              (Address (Just $ appEmailNotificationToName settings)   (appEmailNotificationToAddress settings))

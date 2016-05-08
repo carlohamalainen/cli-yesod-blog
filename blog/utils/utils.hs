@@ -15,6 +15,7 @@ import Import
 import Yesod.Default.Config
 import Database.Persist.Sqlite
 import Settings
+import Data.String.Conversions
 import Data.Time (UTCTime, getCurrentTime, toGregorian, utctDay)
 import Control.Monad.Logger (runNoLoggingT)
 import Control.Monad.Trans.Resource (runResourceT)
@@ -56,29 +57,37 @@ import Safe
 
 
 sanitiseTitle :: DT.Text -> DT.Text
-sanitiseTitle = wpHack . DT.pack . nukeNonAlNum . map hack . map dotToDash . DT.unpack . dashes . lowerCase
-    where dashes        = DT.intercalate (DT.pack "-") . DT.words
-          lowerCase     = DT.toLower
-          nukeNonAlNum  = mapMaybe (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
+sanitiseTitle = cs . wpHack . nukeNonAlNum . map hack . map dotToDash . cs . dashes . lowerCase
+    where dashes :: DT.Text -> DT.Text
+          dashes = DT.intercalate "-" . DT.words
 
+          lowerCase :: DT.Text -> DT.Text
+          lowerCase = DT.toLower
+
+          nukeNonAlNum :: String -> String
+          nukeNonAlNum = cs . mapMaybe (\c -> if c == '-' || isAlphaNum c then Just c else Nothing)
+
+          dotToDash :: Char -> Char
           dotToDash '.' = '-'
           dotToDash c = c
 
+          hack :: Char -> Char
           hack 'ň' = 'n'
           hack 'é' = 'e'
           hack c   = c
 
           -- I'll be damned if I can be bothered to work out Wordpress' scheme for making permalinks, so here
           -- are a few manual exceptions to sanitiseTitle.
+          wpHack :: String -> String
           wpHack t
-            | t == DT.pack "pyx-0-10-experimental-package"                              = DT.pack "pyx-010-experimental-package"
-            | t == DT.pack "pyx-0-10-experimental-package"                              = DT.pack "pyx-010-experimental-package"
-            | t == DT.pack "telstra-prepaid-wireless-broadband-on-ubuntu-9-0410-04"     = DT.pack "telstra-prepaid-wireless-broadband-on-ubuntu-9-04"
-            | t == DT.pack "recovery-of-data-from-a-raid-5-disk"                        = DT.pack "recovery-of-data-from-a-raid5-disk"
-            | t == DT.pack "scipy-znst8iosbase4initd1ev-and-link-flags"                 = DT.pack "scipy-_znst8ios_base4initd1ev-and-link-flags"
-            | t == DT.pack "passing-a-numpy-array-to-a-c-function"                      = DT.pack "passing-numpy-array-to-c-function"
-            | t == DT.pack "xfce4-xfapplet-plugin-for-centos-6-3"                       = DT.pack "xfce4-xfapplet-panel-for-centos-6-3"
-            | otherwise                                                                 = t
+            | t == "pyx-0-10-experimental-package"                              = "pyx-010-experimental-package"
+            | t == "pyx-0-10-experimental-package"                              = "pyx-010-experimental-package"
+            | t == "telstra-prepaid-wireless-broadband-on-ubuntu-9-0410-04"     = "telstra-prepaid-wireless-broadband-on-ubuntu-9-04"
+            | t == "recovery-of-data-from-a-raid-5-disk"                        = "recovery-of-data-from-a-raid5-disk"
+            | t == "scipy-znst8iosbase4initd1ev-and-link-flags"                 = "scipy-_znst8ios_base4initd1ev-and-link-flags"
+            | t == "passing-a-numpy-array-to-a-c-function"                      = "passing-numpy-array-to-c-function"
+            | t == "xfce4-xfapplet-plugin-for-centos-6-3"                       = "xfce4-xfapplet-panel-for-centos-6-3"
+            | otherwise                                                         = t
 
 
 -- newtype SanitisedTitle = SanitisedTitle Text deriving (Show, Eq, Read)
@@ -173,15 +182,26 @@ blah = do
 
 -- Actually, there is now fromSqlKey and toSqlKey so just use them.
 unKey' :: ToBackendKey SqlBackend record => Key record -> Text
-unKey' = DT.pack . show . fromSqlKey
+unKey' = cs . show . fromSqlKey
 
 printBlogPost :: Key Entry -> Entry -> IO ()
 printBlogPost eid (Entry title mashedTitle year month day content visible) = do
-    let niceEntryId = unKey' eid
-        niceURL = DT.intercalate (DT.pack "/") (map DT.pack [show year, show month, show day, DT.unpack mashedTitle])
+    let niceEntryId :: DT.Text
+        niceEntryId = unKey' eid
+
+        niceURL :: DT.Text
+        niceURL = DT.intercalate "/" (map cs [show year, show month, show day, cs mashedTitle])
+
+        niceTitle :: DT.Text
         niceTitle = title
+
+        niceContent :: DT.Text
         niceContent = DTE.decodeUtf8With DTEE.lenientDecode $ BS.concat . BSL.toChunks $ renderHtml content -- Html converted to Text
-        niceContent' = take 50 $ DT.replace (DT.pack "\n") (DT.pack " ... ") niceContent -- rip out newlines, take first 50 characters
+
+        niceContent' :: DT.Text
+        niceContent' = take 50 $ DT.replace "\n" " ... " niceContent -- rip out newlines, take first 50 characters
+
+        niceVisible :: DT.Text
         niceVisible = if visible then "VISIBLE" else "HIDDEN"
 
     putStrLn $ niceEntryId ++ " " ++ niceVisible ++ " " ++ niceURL ++ " " ++ " '" ++ niceTitle ++ "' " ++ niceContent'
@@ -225,18 +245,17 @@ makeFakeBlogPosts = do
     (year1, month1, day1) <- liftM getYMD getCurrentTime
 
     print (year1, month1, day1)
-    let e1 = Entry (DT.pack "first post") (sanitiseTitle $ DT.pack "first post") year1 month1 day1 (toHtml ("Hi there!" :: String)) False
+    let e1 = Entry "first post" (sanitiseTitle "first post") year1 month1 day1 (toHtml ("Hi there!" :: String)) False
 
     (year2, month2, day2) <- liftM getYMD getCurrentTime
     print (year2, month2, day2)
-    let e2 = Entry (DT.pack "second post") (sanitiseTitle $ DT.pack "second post") year2 month2 day2 (toHtml ("Hi there! Do de dah!" :: String)) False
+    let e2 = Entry "second post" (sanitiseTitle "second post") year2 month2 day2 (toHtml ("Hi there! Do de dah!" :: String)) False
 
     forM_ [e1, e2] (void . myRunDB . insert)
 
     return ()
 
-maybeTextToText (Just t) = t    -- FIXME something like this is surely standard.
-maybeTextToText Nothing  = DT.pack ""
+maybeTextToText = fromMaybe ""
 
 showBlogPost i = do
     let entryId = toSqlKey i
@@ -252,10 +271,10 @@ showBlogPost i = do
                                                                                niceName         = name
                                                                                niceEmail        = maybeTextToText email
                                                                                niceUrl          = maybeTextToText url
-                                                                               niceText         = DT.pack $ show $ lines $ DTL.unpack $ TBHRT.renderHtml text
+                                                                               niceText         = cs $ show $ lines $ TBHRT.renderHtml text
                                                                                niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
-                                                                           putStrLn $ "comment: " ++ (DT.pack $ show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
+                                                                           putStrLn $ "comment: " ++ (cs $ show i) ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceText)
                                    Nothing  -> print "boo"
     -- where foo (PersistInt64 i) = i
 
@@ -278,7 +297,7 @@ addBlogPostFromFile fileName = do
     h <- openFile fileName ReadMode
 
     contents <- BS.hGetContents h
-    let x = lines $ DT.unpack $ DTE.decodeUtf8With DTEE.lenientDecode contents
+    let x = map cs $ lines $ DTE.decodeUtf8With DTEE.lenientDecode contents
 
     -- x <- lines <$> readFile fileName
 
@@ -286,7 +305,7 @@ addBlogPostFromFile fileName = do
         year    = read $ words ymd !! 0 :: Int
         month   = read $ words ymd !! 1 :: Int
         day     = read $ words ymd !! 2 :: Int
-        title   = DT.pack $ P.head $ tail x
+        title   = cs $ P.head $ tail x
         content = toHtml $ TB.preEscapedToMarkup $ unlines $ drop 2 x
 
     eid <- myRunDB $ insert (Entry title (sanitiseTitle title) year month day content False)
@@ -300,18 +319,18 @@ addBlogPostFromFile fileName = do
 addCommentFromFile entryId commentFile = do
     x <- liftM lines (P.readFile commentFile)
 
-    let commentAuthor       = DT.pack $ x !! 0
-        commentAuthorEmail  = castTextToMaybe $ DT.pack $ x !! 1
-        commentAuthorUrl    = castTextToMaybe $ DT.pack $ x !! 2
+    let commentAuthor       = cs $ x !! 0
+        commentAuthorEmail  = castTextToMaybe $ cs $ x !! 1
+        commentAuthorUrl    = castTextToMaybe $ cs $ x !! 2
         commentDate         = read (x !! 3) :: UTCTime
-        commentText         = (toHtml . TB.preEscapedToMarkup) $ DT.pack $ unlines $ drop 4 x
+        commentText         = (toHtml . TB.preEscapedToMarkup) $ unlines $ drop 4 x
 
         visible = False
 
     c <- myRunDB $ insert (Comment entryId commentDate commentAuthor commentAuthorEmail commentAuthorUrl commentText visible)
     print c -- FIXME do something more verbose
 
-    where castTextToMaybe s = if s == DT.pack "" then Nothing else Just s
+    where castTextToMaybe s = if s == "" then Nothing else Just s
 
 getCommentFiles fileName = liftM (DL.sort . commentFile . addDirectoryPrefix . keepOurs) directoryContents
     where directoryContents = getDirectoryContents (FP.takeDirectory fileName) :: IO [FP.FilePath]
@@ -340,18 +359,18 @@ editComment cid = do
 
     comment <- myRunDB $ get commentId
 
-    case (comment :: Maybe Comment) of (Just c) -> do let name1 = DT.unpack $ commentName c
-                                                          url1  = if isNothing (commentUrl c) then "" else DT.unpack $ fromJust $ commentUrl c
-                                                          text1 = DTL.unpack $ TBHRT.renderHtml $ commentText c
+    case (comment :: Maybe Comment) of (Just c) -> do let name1 = commentName c
+                                                          url1  = if isNothing (commentUrl c) then "" else cs $ fromJust $ commentUrl c
+                                                          text1 = cs $ TBHRT.renderHtml $ commentText c
                                                       writeFile "/tmp/blah.html" (name1 ++ "\n" ++ url1 ++ "\n" ++ text1) -- FIXME use a temp file
 
                                                       r <- system "vim /tmp/blah.html"
                                                       x <- readFile "/tmp/blah.html"
 
-                                                      let name2 = DT.pack $ P.head $ lines x
-                                                          url2  = DT.pack $ P.head $ P.drop 1 $ lines x
-                                                          url2' = if url2 == DT.pack "" then Nothing else Just url2
-                                                          text2 = (toHtml . TB.preEscapedToMarkup) (DT.pack $ unlines $ drop 2 $ lines x)
+                                                      let name2 = P.head $ lines x
+                                                          url2  = P.head $ P.drop 1 $ lines x
+                                                          url2' = if url2 == "" then Nothing else Just url2
+                                                          text2 = (toHtml . TB.preEscapedToMarkup) (unlines $ drop 2 $ lines x)
 
                                                       myRunDB $ update commentId [ CommentName =. name2
                                                                                  , CommentUrl  =. url2'
@@ -389,7 +408,7 @@ reportUnmoderatedComments = do
                                  niceName         = name
                                  niceEmail        = maybeTextToText email
                                  niceUrl          = maybeTextToText url
-                                 niceText         = DT.pack $ show $ lines $ DTL.unpack $ TBHRT.renderHtml text
+                                 niceText         = cs $ show $ lines $ TBHRT.renderHtml text
                                  niceVisible      = if visible then "VISIBLE" else "HIDDEN"
 
                              putStrLn $ niceEntryId ++ " " ++ niceCommentId ++ " " ++ niceVisible ++ " " ++ niceName ++ " " ++ niceEmail ++ " " ++ niceUrl ++ " " ++ niceText)
@@ -404,10 +423,10 @@ go ["--edit-comment", commentId]      = editComment (read commentId)
 go ["--delete-post", entryId]    = deleteBlogPost (read entryId)
 go ["--delete-comment", commentId]    = deleteComment (read commentId)
 
-go ["--add", title]         = do x <- addBlogPostFromEditor (DT.pack title)
+go ["--add", title]         = do x <- addBlogPostFromEditor (cs title)
                                  print x -- FIXME tidy this up
 
-go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin (DT.pack title) (read year) (read month) (read day)
+go ["--add-from-stdin", title, year, month, day]  = do x <- addBlogPostFromStdin (cs title) (read year) (read month) (read day)
                                                        print x -- FIXME tidy this up
 
 go ["--add-from-file", fileName]  = addBlogPostFromFile fileName
@@ -455,4 +474,4 @@ go _ = do
     putStrLn ""
 
 main :: IO ()
-main = getArgs >>= (return . map DT.unpack) >>= go
+main = getArgs >>= (return . map cs) >>= go
