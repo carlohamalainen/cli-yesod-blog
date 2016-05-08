@@ -1,0 +1,10 @@
+flags:
+  blog:
+    library-only: false
+    dev: false
+packages:
+- '.'
+extra-deps:
+    - yesod-recaptcha-1.4
+    - rss-3000.2.0.5
+resolver: lts-3.1
