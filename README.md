@@ -3,6 +3,8 @@ cli-yesod-blog
 
 Yesod blog with a basic CLI for managing posts.
 
+Build it using http://docs.haskellstack.org/en/stable/README
+
 TODO
 ====
 
