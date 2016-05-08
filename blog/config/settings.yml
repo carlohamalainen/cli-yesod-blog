@@ -1,35 +1,75 @@
-Default: &defaults
-  host: "*4" # any IPv4 host
-  port: 4000
-  approot: "http://localhost:4000"
-  base_url: "blog"
-  copyright: Copyright Carlo Hamalainen 2007-2016
-  #analytics: UA-YOURCODE
+# Values formatted like "_env:ENV_VAR_NAME:default_value" can be overridden by the specified environment variable.
+# See https://github.com/yesodweb/yesod/wiki/Configuration#overriding-configuration-values-with-environment-variables
+
+static-dir:     "_env:STATIC_DIR:static"
+host:           "_env:HOST:*4" # any IPv4 host
+port:           "_env:PORT:3001"
+approot:        "https://example.net"
+ip-from-header: "_env:IP_FROM_HEADER:false"
+
+# Optional values with the following production defaults.
+# In development, they default to the inverse.
+#
+# development: false
+# detailed-logging: false
+# should-log-all: false
+# reload-templates: false
+# mutable-static: false
+# skip-combining: false
+
+database:
+  database: "_env:SQLITE_DATABASE:blog.sqlite3"
+  poolsize: "_env:SQLITE_POOLSIZE:10"
+
+copyright: Copyright Carlo Hamalainen 2007-2016
+#analytics: UA-YOURCODE
+
+# Limits:
+max_nr_comments: 100
+max_comment_length: 100000
+
+# For the RSS feed:
+rss_web_master: "Carlo Hamalainen"
+rss_language: "en-US"
+rss_copyright: "Carlo Hamalainen"
+
+email_notification_from_name:     "blog"
+email_notification_from_address:  "carlo@example.net"
+
+email_notification_to_name:     "blog"
+email_notification_to_address:  "carlo@example.net"
+
+base_url: "blog"
 
 Development:
-  <<: *defaults
+    approot: "https://example.net"
 
-Testing:
-  <<: *defaults
+    static-dir:     "_env:STATIC_DIR:static"
+    host:           "_env:HOST:*4" # any IPv4 host
+    port:           3001
+    approot:        "https://example.net"
+    ip-from-header: "_env:IP_FROM_HEADER:false"
 
-Staging:
-  <<: *defaults
+    database:
+      database: "_env:SQLITE_DATABASE:blog.sqlite3"
+      poolsize: "_env:SQLITE_POOLSIZE:10"
 
-Production:
-  #approot: "http://www.example.com"
-  <<: *defaults
-  port: 4321
-  approot: "http://carlo-hamalainen.net"
-  # approot: "http://localhost:8080"
-  rss_web_master: "Carlo Hamalainen"
-  rss_language: "en-US"
-  rss_copyright: "Carlo Hamalainen"
+    copyright: Copyright Carlo Hamalainen 2007-2016
+    #analytics: UA-YOURCODE
 
-  email_notification_from_name:     "blog"
-  email_notification_from_address:  "carlo@carlo-hamalainen.net"
+    # Limits:
+    max_nr_comments: 100
+    max_comment_length: 100000
 
-  email_notification_to_name:     "blog"
-  email_notification_to_address:  "carlo@carlo-hamalainen.net"
+    # For the RSS feed:
+    rss_web_master: "Carlo Hamalainen"
+    rss_language: "en-US"
+    rss_copyright: "Carlo Hamalainen"
 
-  max_nr_comments: 100
-  max_comment_length: 100000
+    email_notification_from_name:     "blog"
+    email_notification_from_address:  "carlo@example.net"
+
+    email_notification_to_name:     "blog"
+    email_notification_to_address:  "carlo@example.net"
+
+    base_url: "blog"
