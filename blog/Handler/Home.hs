@@ -1,89 +1,99 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Handler.Home where
 
 import Import
-import Foundation
-import Yesod.Persist
-import Yesod.Form
-import Data.Time (UTCTime, getCurrentTime, utctDay, toGregorian)
-import Model
-import Control.Monad (when)
-
-import Database.Persist.Store (PersistValue(PersistInt64))
+import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
+                              withSmallInput)
 
 import qualified Data.Text as DT
+import qualified System.FilePath.Posix as FP
+import qualified Text.RSS as RSS
 
+import Data.Maybe (fromJust)
 import Text.Printf
-import Data.Maybe
-import Control.Applicative
 import Yesod.ReCAPTCHA
 
-import Network.Mail.Mime
-import qualified Data.Text.Lazy as DTL
-
-import qualified Text.RSS as RSS
 import Network.URI
-import Data.Time.Calendar
-import Data.Time.Clock
-import Safe
-
-import Data.List (sortBy)
-import Data.Function (on)
-
-import Data.Yaml (decodeFile, Value)
-import Data.Aeson.Types
-
-import Control.Monad
-
-import Yesod.Default.Config
-
-import qualified Text.Blaze.Html.Renderer.Text as TBHRT
-import GHC.Int
-
 import Network.Wai
+import Network.Mail.Mime
 
-import System.FilePath.Posix
+import qualified Data.List as DL
+import qualified Data.Text.Lazy as DTL
+import qualified Text.Blaze.Html.Renderer.Text as TBHRT
 
-import Debug.Trace
+cu :: FP.FilePath -> FP.FilePath -> FP.FilePath
+cu x y = FP.dropTrailingPathSeparator $ (FP.dropTrailingPathSeparator x) FP.</> y
 
-cu :: FilePath -> FilePath -> FilePath
-cu x y = dropTrailingPathSeparator $ (dropTrailingPathSeparator x) </> y
+baseUrl = (appBaseUrl . appSettings) <$> getYesod
 
----------------------------------------------------------------------
-data Person = Person { personName :: Text }
-    deriving Show
+commentForm :: EntryId -> Html -> MForm Handler (FormResult Comment, Widget)
+commentForm entryId extra = do
+    (nameRes, nameView)     <- mreq textField  (fieldSettingsLabel MsgCommentName)  Nothing
+    (emailRes, emailView)   <- mopt emailField (fieldSettingsLabel MsgCommentEmail) Nothing
+    (urlRes, urlView)       <- mopt urlField   (fieldSettingsLabel MsgCommentUrl)   Nothing
+    (textRes, textView)     <- mreq htmlField  (fieldSettingsLabel MsgCommentText)  Nothing
 
-personForm :: Form Person
-personForm = renderDivs $ Person <$> areq textField "Name" Nothing
+    (recapRes, recapView)   <- recaptchaMForm
 
-getFormResult f = do
-    (result, _) <- aFormToForm f
-    return result
+    let recapView0 = recapView DL.!! 0
 
----------------------------------------------------------------------
+    now <- liftIO getCurrentTime
 
-baseUrl = do
-    e <- getExtra
-    return $ extraBaseUrl e
+    let c = Comment
+              <$> pure entryId
+              <*> pure now
+              <*> nameRes
+              <*> emailRes
+              <*> urlRes
+              <*> textRes
+              <*> pure False <* recapRes
 
-commentForm :: EntryId -> Form Comment
-commentForm entryId = renderDivs $ Comment
-    <$> pure entryId
-    <*> aformM (liftIO getCurrentTime)
-    <*> areq textField (fieldSettingsLabel MsgCommentName) Nothing
-    <*> aopt emailField (fieldSettingsLabel MsgCommentEmail) Nothing
-    <*> aopt urlField (fieldSettingsLabel MsgCommentUrl) Nothing
-    <*> areq htmlField (fieldSettingsLabel MsgCommentText) Nothing
-    <*> pure False <* recaptchaAForm
+    let widget = do
+            toWidget
+                [lucius|
+                    ##{fvId nameView} {
+                        width: 70ch;
+                    }
+                    ##{fvId emailView} {
+                        width: 70ch;
+                    }
+                    ##{fvId urlView} {
+                        width: 70ch;
+                    }
+                    ##{fvId textView} {
+                        width: 120ch;
+                        height: 120ch;
+                    }
+                |]
+            [whamlet|
+                #{extra}
+                <p>
+                    Name                 #
+                <p>
+                    ^{fvInput nameView}
+                <p>
+                    \ Email (not shown)  #
+                <p>
+                    ^{fvInput emailView}
+                <p>
+                    \ URL (optional)     #
+                <p>
+                    ^{fvInput urlView}
+                <p>
+                    \ Comment            #
+                <p>
+                    ^{fvInput textView}
+                <p>
+                    ^{fvInput recapView0}
+            |]
+
+    return (c, widget)
 
 -- My posts are specified by year/month/day and mashed-title, so
 -- pretend that they all happened at midday.
 midday = fromIntegral (12*3600 :: Integer)
 
 latestPost :: [Entry] -> UTCTime
-latestPost entries = maximum dates
+latestPost entries = DL.maximum dates
     where dates = map dateOfPost entries :: [UTCTime]
 
 dateOfPost :: Entry -> UTCTime
@@ -107,22 +117,22 @@ entryToItem url author (Entry title mashedTitle year month day content visible) 
 
 getFeedR :: Handler RepXml
 getFeedR = do
-    e <- getExtra
-
     entryEntities <- runDB $ selectList [] []
 
-    base <- baseUrl
+    base <- DT.unpack <$> baseUrl
 
-    root <- DT.unpack <$> fmap (appRoot . settings) getYesod
+    settings <- appSettings <$> getYesod
+
+    let root = DT.unpack $ appRoot settings
     let url = root `cu` base
 
     let entries = reverse $ sortBy (compare `on` dateOfPost) (map entityVal entryEntities) :: [Entry]
-        author  = DT.unpack $ extraRssWebMaster e
+        author  = DT.unpack $ appRssWebMaster settings
         items   = map (entryToItem url author) entries :: [[RSS.ItemElem]]
 
-        channel = [ RSS.Language  $ DT.unpack $ extraRssLanguage e
-                  , RSS.Copyright $ DT.unpack $ extraRssCopyright e
-                  , RSS.WebMaster $ DT.unpack $ extraRssWebMaster e
+        channel = [ RSS.Language  $ DT.unpack $ appRssLanguage      settings
+                  , RSS.Copyright $ DT.unpack $ appRssCopyright     settings
+                  , RSS.WebMaster $ DT.unpack $ appRssWebMaster     settings
                   , RSS.LastBuildDate $ latestPost entries
                   , RSS.Generator "rss-3000"
                   ]
@@ -135,6 +145,8 @@ getFeedR = do
 
 getHomeR :: Handler RepHtml
 getHomeR = do
+    master <- getYesod
+
     entries <- runDB $ selectList [EntryVisible ==. True] [ Desc EntryPostedYear
                                                           , Desc EntryPostedMonth
                                                           , Desc EntryPostedDay
@@ -142,9 +154,12 @@ getHomeR = do
 
     let entriesAsTuples = map deconstructEntryEntity entries
 
-    e <- getExtra
-    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
-    base <- baseUrl
+    let latestEntries   = take 8 entriesAsTuples
+        fmtDateString y m d = printf "%04d-%02d-%02d" y m d :: String
+
+    let url = DT.unpack $ appRoot $ appSettings master
+
+    base <- DT.unpack <$> baseUrl
 
     let feedUrl = url `cu` base `cu` "feed"
 
@@ -157,29 +172,37 @@ getHomeR = do
 $if null entries
     <p>_{MsgNoEntries}
 $else
+    $forall (title, mashedTitle, year, month, mm, day, dd, content, visible) <- latestEntries
+        <h1><a href=@{EntryLongR year month day mashedTitle}>#{title}</a>
+        <h3>#{fmtDateString year month day}
+        <article>#{content}
+<hr>
+$if null entries
+    <p>_{MsgNoEntries}
+$else
     <ul>
         $forall (title, mashedTitle, year, month, mm, day, dd, content, visible) <- entriesAsTuples
             <li> <a href=@{EntryLongR year month day mashedTitle}>#{year}-#{mm}-#{dd} #{title}</a>
 
 <p> <a href="#{feedUrl}">Posts: RSS</a>
-
 |]
 
     -- This deconstruction to a tuple is a bit clunky, but I can't work out how to put
     -- the printf into the #{mm} in the hamlet.
     where deconstructEntryEntity (Entity _ (Entry title mashedTitle year month day content visible)) = (title, mashedTitle, year, month, printf "%02d" month :: String, day, printf "%02d" day :: String, content, visible)
 
+
 getEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 getEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
-    url <- DT.unpack <$> fmap (appRoot . settings) getYesod
+    url <- (DT.unpack . appRoot . appSettings) <$> getYesod
 
     case e of (Just (Entity eid (Entry title' mashedTitle' year' month' day' content' True)))     -> do comments <- runDB $ selectList [CommentEntry ==. eid, CommentVisible ==. True] [Asc CommentPosted]
 
-                                                                                                        e <- getExtra
-                                                                                                        let commentsOpen = length comments < extraMaxNrComments e
-                                                                                                        base <- baseUrl
+                                                                                                        maxNrComments <- (appMaxNrComments . appSettings) <$> getYesod
+                                                                                                        let commentsOpen = length comments < maxNrComments
+                                                                                                        base <- DT.unpack <$> baseUrl
 
                                                                                                         (commentWidget, enctype) <- generateFormPost (commentForm eid)
 
@@ -222,16 +245,15 @@ getEntryLongR year month day mashedTitle = do
 |]
               _                                                                            -> notFound
 
-
 sendEmailNotification comment title ip = do
-    extra <- getExtra
+    settings <- appSettings <$> getYesod
 
     let Comment _ _ name email _ text _ = comment
         niceEmail = maybe "<no email supplied>" id (fmap DT.unpack email)
         subjectLine = DT.pack $ "new comment from [" ++ (DT.unpack name) ++ "] with email [" ++ niceEmail ++ "] with address [" ++ (show ip) ++ "] on post [" ++ (DT.unpack title) ++ "]"
 
-    x <- liftIO $ simpleMail (Address (Just $ extraEmailNotificationFromName extra) (extraEmailNotificationFromAddress extra))
-                             (Address (Just $ extraEmailNotificationToName extra)   (extraEmailNotificationToAddress extra))
+    x <- liftIO $ simpleMail (Address (Just $ appEmailNotificationFromName settings) (appEmailNotificationFromAddress settings))
+                             (Address (Just $ appEmailNotificationToName settings)   (appEmailNotificationToAddress settings))
                              subjectLine
                              (TBHRT.renderHtml $ text)
                              (TBHRT.renderHtml $ text)
@@ -270,17 +292,18 @@ postEntryLongR :: Int -> Int -> Int -> Text -> Handler RepHtml
 postEntryLongR year month day mashedTitle = do
     e <- runDB $ getBy $ EntryYMDMashed year month day mashedTitle
 
+    settings <- appSettings <$> getYesod
+
     let entryId = entityKey (fromJust e) -- FIXME handle the Nothing case here
         title   = (entryTitle . entityVal) (fromJust e) -- FIXME handle the Nothing case?
 
-    extra <- getExtra
-
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
-        FormSuccess comment -> do if (DTL.length $ TBHRT.renderHtml $ commentText comment) < (fromIntegral $ extraMaxCommentLength extra :: Int64)
+        FormSuccess comment -> do if (DTL.length $ TBHRT.renderHtml $ commentText comment) < (fromIntegral $ appMaxCommentLength settings :: Int64)
                                     then do ip <- fmap (show . remoteHost . reqWaiRequest) getRequest
                                             successfulCommentPost year month day mashedTitle comment title ip
                                     else unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectTooLong
 
         _ -> unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectComment
+
 
