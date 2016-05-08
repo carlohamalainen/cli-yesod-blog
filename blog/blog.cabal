@@ -23,7 +23,6 @@ library
                      Handler.Common
                      Handler.Home
                      RecaptchaKeys
-                     ReCAPTCHA
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
