@@ -3,7 +3,7 @@ Default: &defaults
   port: 4000
   approot: "http://localhost:4000"
   base_url: "blog"
-  copyright: Copyright Carlo Hamalainen 2007-2014
+  copyright: Copyright Carlo Hamalainen 2007-2016
   #analytics: UA-YOURCODE
 
 Development:
