@@ -301,7 +301,14 @@ postEntryLongR year month day mashedTitle = do
     ((res, commentWidget), enctype) <- runFormPost (commentForm entryId)
     case res of
         FormSuccess comment -> do if (DTL.length $ TBHRT.renderHtml $ commentText comment) < (fromIntegral $ appMaxCommentLength settings :: Int64)
-                                    then do ip <- fmap (show . remoteHost . reqWaiRequest) getRequest
+                                    then do -- ip <- fmap (show . remoteHost . reqWaiRequest) getRequest
+                                            -- For IP lookup to work with nginx, you need to set the
+                                            -- X-Real-IP header in the proxy:
+                                            --   location /blog {
+                                            --       proxy_pass http://127.0.0.1:3001; # Reverse proxy to your Yesod app
+                                            --       proxy_set_header X-Real-IP $remote_addr;
+                                            --   }
+                                            ip <- lookupHeader "X-Real-IP"
                                             successfulCommentPost year month day mashedTitle comment title ip
                                     else unsuccessfulCommentPost commentWidget enctype MsgPleaseCorrectTooLong
 
